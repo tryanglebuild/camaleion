@@ -1,0 +1,17 @@
+{
+  "name": "context-engine",
+  "private": true,
+  "version": "0.0.1",
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=9"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @context-engine/mcp-server dev & pnpm --filter @context-engine/web-ui dev",
+    "build": "pnpm --filter @context-engine/shared build && pnpm --filter '*' build",
+    "type-check": "pnpm --filter '*' type-check"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3"
+  }
+}
