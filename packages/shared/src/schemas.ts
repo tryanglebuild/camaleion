@@ -1,8 +1,10 @@
 import { z } from 'zod'
 
-export const EntryTypeSchema = z.enum(['task', 'note', 'decision', 'meet', 'idea', 'log'])
+export const EntryTypeSchema = z.enum(['task', 'note', 'decision', 'meet', 'idea', 'log', 'analysis', 'plan', 'post', 'file'])
 export const EntryStatusSchema = z.enum(['pending', 'done', 'blocked'])
 export const ProjectStatusSchema = z.enum(['active', 'paused', 'done'])
+export const RuleCategorySchema = z.enum(['behavior', 'memory', 'output', 'general'])
+export const GenerationPlatformSchema = z.enum(['linkedin', 'twitter', 'newsletter'])
 
 // MCP tool input schemas
 export const AddEntryInputSchema = z.object({
@@ -56,6 +58,12 @@ export const GetProjectsInputSchema = z.object({
   status: ProjectStatusSchema.optional(),
 })
 
+export const GetCompaniesInputSchema = z.object({})
+
+export const GetProjectsByCompanyInputSchema = z.object({
+  company: z.string().min(1),
+})
+
 export const AddPersonInputSchema = z.object({
   name: z.string().min(1),
   role: z.string().optional(),
@@ -68,6 +76,109 @@ export const GetPeopleInputSchema = z.object({
   company: z.string().optional(),
 })
 
+// ── Module 0: Rules Engine ────────────────────────────────────────────────────
+
+export const GetRulesInputSchema = z.object({
+  category: RuleCategorySchema.optional(),
+  active: z.boolean().optional(),
+})
+
+export const AddRuleInputSchema = z.object({
+  title: z.string().min(1),
+  content: z.string().min(1),
+  category: RuleCategorySchema.optional(),
+  priority: z.number().int().default(0),
+})
+
+export const UpdateRuleInputSchema = z.object({
+  id: z.string().uuid(),
+  title: z.string().min(1).optional(),
+  content: z.string().min(1).optional(),
+  active: z.boolean().optional(),
+  priority: z.number().int().optional(),
+  category: RuleCategorySchema.optional(),
+})
+
+export const DeleteRuleInputSchema = z.object({
+  id: z.string().uuid(),
+})
+
+// ── Module 1: Analysis ────────────────────────────────────────────────────────
+
+export const SaveAnalysisInputSchema = z.object({
+  project: z.string().min(1),
+  summary: z.string().min(1),
+  insights: z.string().min(1),
+  focus: z.enum(['debt', 'patterns', 'dependencies', 'general']).optional(),
+  files_referenced: z.array(z.string()).optional(),
+  tags: z.array(z.string()).optional(),
+})
+
+export const GetAnalysesInputSchema = z.object({
+  project: z.string().optional(),
+  focus: z.string().optional(),
+  since: z.string().optional(),
+  limit: z.number().int().positive().max(50).default(10),
+})
+
+export const DeleteAnalysisInputSchema = z.object({
+  id: z.string().uuid(),
+})
+
+// ── Module 2: Planning ────────────────────────────────────────────────────────
+
+export const SavePlanInputSchema = z.object({
+  goal: z.string().min(1),
+  project: z.string().optional(),
+  tasks: z.array(z.object({
+    title: z.string().min(1),
+    description: z.string().optional(),
+    tags: z.array(z.string()).optional(),
+    depends_on: z.string().optional(),
+  })).min(1),
+})
+
+// ── Module 3: Generation — Storage ───────────────────────────────────────────
+
+export const UploadFileInputSchema = z.object({
+  path: z.string().min(1),
+  category: z.enum(['documents', 'code-snippets', 'notes']).optional(),
+  project: z.string().optional(),
+  tags: z.array(z.string()).optional(),
+})
+
+// ── Module 3: Generation — Posts ─────────────────────────────────────────────
+
+export const SetGenerationProfileInputSchema = z.object({
+  platform: GenerationPlatformSchema,
+  intent: z.string().min(1),
+  tone: z.string().min(1),
+  topics: z.array(z.string()),
+  avoid: z.array(z.string()).default([]),
+  post_frequency: z.string().optional(),
+  language: z.string().default('english'),
+})
+
+export const FetchWorldContextInputSchema = z.object({
+  topics: z.array(z.string()).optional(),
+  since: z.string().optional(),
+  limit: z.number().int().positive().max(20).default(10),
+})
+
+export const GeneratePostsInputSchema = z.object({
+  platform: GenerationPlatformSchema.optional(),
+  count: z.number().int().positive().max(10).default(3),
+  focus: z.enum(['my recent work', 'world news', 'mixed']).default('mixed'),
+  topic_hint: z.string().optional(),
+})
+
+export const SavePostInputSchema = z.object({
+  content: z.string().min(1),
+  platform: GenerationPlatformSchema,
+  published: z.boolean().default(false),
+  published_at: z.string().optional(),
+})
+
 export type AddEntryInput = z.infer<typeof AddEntryInputSchema>
 export type GetEntriesInput = z.infer<typeof GetEntriesInputSchema>
 export type UpdateEntryInput = z.infer<typeof UpdateEntryInputSchema>
@@ -75,5 +186,20 @@ export type SearchMemoryInput = z.infer<typeof SearchMemoryInputSchema>
 export type QueryContextInput = z.infer<typeof QueryContextInputSchema>
 export type AddProjectInput = z.infer<typeof AddProjectInputSchema>
 export type GetProjectsInput = z.infer<typeof GetProjectsInputSchema>
+export type GetCompaniesInput = z.infer<typeof GetCompaniesInputSchema>
+export type GetProjectsByCompanyInput = z.infer<typeof GetProjectsByCompanyInputSchema>
 export type AddPersonInput = z.infer<typeof AddPersonInputSchema>
 export type GetPeopleInput = z.infer<typeof GetPeopleInputSchema>
+export type GetRulesInput = z.infer<typeof GetRulesInputSchema>
+export type AddRuleInput = z.infer<typeof AddRuleInputSchema>
+export type UpdateRuleInput = z.infer<typeof UpdateRuleInputSchema>
+export type DeleteRuleInput = z.infer<typeof DeleteRuleInputSchema>
+export type SaveAnalysisInput = z.infer<typeof SaveAnalysisInputSchema>
+export type GetAnalysesInput = z.infer<typeof GetAnalysesInputSchema>
+export type DeleteAnalysisInput = z.infer<typeof DeleteAnalysisInputSchema>
+export type SavePlanInput = z.infer<typeof SavePlanInputSchema>
+export type UploadFileInput = z.infer<typeof UploadFileInputSchema>
+export type SetGenerationProfileInput = z.infer<typeof SetGenerationProfileInputSchema>
+export type FetchWorldContextInput = z.infer<typeof FetchWorldContextInputSchema>
+export type GeneratePostsInput = z.infer<typeof GeneratePostsInputSchema>
+export type SavePostInput = z.infer<typeof SavePostInputSchema>

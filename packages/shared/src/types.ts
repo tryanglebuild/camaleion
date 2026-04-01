@@ -1,6 +1,8 @@
-export type EntryType = 'task' | 'note' | 'decision' | 'meet' | 'idea' | 'log'
+export type EntryType = 'task' | 'note' | 'decision' | 'meet' | 'idea' | 'log' | 'analysis' | 'plan' | 'post' | 'file'
 export type EntryStatus = 'pending' | 'in_progress' | 'done' | 'blocked'
 export type ProjectStatus = 'active' | 'paused' | 'done'
+export type RuleCategory = 'behavior' | 'memory' | 'output' | 'general'
+export type GenerationPlatform = 'linkedin' | 'twitter' | 'newsletter'
 
 export interface Project {
   id: string
@@ -41,10 +43,37 @@ export interface Entry {
 
 export interface Embedding {
   id: string
-  entry_id: string
+  entry_id: string | null
   embedding: number[]
   content: string
+  source_type: 'entry' | 'file'
+  file_path: string | null
   created_at: string
+}
+
+export interface Rule {
+  id: string
+  title: string
+  content: string
+  category: RuleCategory | null
+  active: boolean
+  priority: number
+  created_at: string
+  updated_at: string
+}
+
+export interface GenerationProfile {
+  id: string
+  platform: GenerationPlatform
+  intent: string
+  tone: string
+  topics: string[]
+  avoid: string[]
+  post_frequency: string | null
+  language: string
+  active: boolean
+  created_at: string
+  updated_at: string
 }
 
 export interface SearchResult {

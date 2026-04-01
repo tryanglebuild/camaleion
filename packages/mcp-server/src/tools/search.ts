@@ -64,25 +64,48 @@ export function registerSearchTools(server: McpServer) {
 
   server.tool(
     'query_context',
-    'Answer a natural language question by searching memory and returning formatted context ready for Claude to use.',
+    'Answer a natural language question by searching memory and returning formatted context ready for Claude to use. Also returns active system_rules so Claude applies them for the session.',
     QueryContextInputSchema.shape,
     async (input) => {
       const parsed = QueryContextInputSchema.parse(input)
 
-      const embedding = await embedText(parsed.question)
+      // Load active system rules in parallel with the semantic search
+      const [embeddingResult, rulesResult] = await Promise.all([
+        embedText(parsed.question),
+        supabase
+          .from('rules')
+          .select('title, content, category')
+          .eq('active', true)
+          .order('priority', { ascending: false }),
+      ])
 
       const { data: matches, error } = await supabase.rpc('match_entries', {
-        query_embedding: JSON.stringify(embedding),
+        query_embedding: JSON.stringify(embeddingResult),
         match_count: 5,
         filter_type: null,
         filter_project: null,
       })
 
       if (error) throw new Error(`Context query failed: ${error.message}`)
-      if (!matches || matches.length === 0) {
-        return {
-          content: [{ type: 'text', text: 'No relevant context found in memory.' }],
+
+      const lines: string[] = []
+
+      // ── System Rules block (injected at every session) ──────────────────────
+      const rules = rulesResult.data ?? []
+      if (rules.length > 0) {
+        lines.push(`# System Rules`)
+        lines.push(`Apply these rules for this entire session:\n`)
+        for (const rule of rules) {
+          lines.push(`• [${(rule.category ?? 'general').toUpperCase()}] **${rule.title}**: ${rule.content}`)
         }
+        lines.push('')
+      }
+
+      // ── Memory context ───────────────────────────────────────────────────────
+      if (!matches || matches.length === 0) {
+        lines.push('# Memory Context')
+        lines.push('No relevant context found in memory.')
+        return { content: [{ type: 'text', text: lines.join('\n') }] }
       }
 
       const entryIds = matches.map((m: { entry_id: string }) => m.entry_id)
@@ -93,10 +116,8 @@ export function registerSearchTools(server: McpServer) {
 
       const entryMap = new Map<string, Entry>((entries ?? []).map((e: Entry) => [e.id, e]))
 
-      const lines: string[] = [
-        `# Context for: "${parsed.question}"`,
-        `Retrieved ${matches.length} relevant memory entries:\n`,
-      ]
+      lines.push(`# Context for: "${parsed.question}"`)
+      lines.push(`Retrieved ${matches.length} relevant memory entries:\n`)
 
       for (const match of matches as { entry_id: string; score: number }[]) {
         const entry = entryMap.get(match.entry_id)
