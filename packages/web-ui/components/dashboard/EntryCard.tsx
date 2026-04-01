@@ -43,6 +43,7 @@ export function EntryCard({ entry, index = 0, onClick }: EntryCardProps) {
         borderLeft: `3px solid ${accentColor}`,
         originX: 0,
         transformOrigin: 'left center',
+        minHeight: 130,
       }}
     >
       {/* Header row */}
@@ -51,7 +52,7 @@ export function EntryCard({ entry, index = 0, onClick }: EntryCardProps) {
         style={{
           display: 'flex', alignItems: 'center',
           justifyContent: 'space-between', gap: 8,
-          padding: '12px 14px 8px',
+          padding: '11px 14px 7px',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
@@ -74,8 +75,8 @@ export function EntryCard({ entry, index = 0, onClick }: EntryCardProps) {
           fontFamily: 'var(--font-space-grotesk)',
           fontSize: 13, fontWeight: 600,
           color: 'var(--text-primary)',
-          lineHeight: 1.45, margin: 0,
-          padding: '0 14px 6px',
+          lineHeight: 1.4, margin: 0,
+          padding: '0 14px 7px',
           display: '-webkit-box',
           WebkitLineClamp: 2,
           WebkitBoxOrient: 'vertical',
@@ -85,14 +86,14 @@ export function EntryCard({ entry, index = 0, onClick }: EntryCardProps) {
         {entry.title}
       </motion.h3>
 
-      {/* Content preview */}
+      {/* Content preview — only if there's a title and content, limit strictly */}
       {entry.content && (
         <motion.p
           variants={itemVariants}
           style={{
-            fontSize: 11.5,
-            color: 'var(--text-secondary)',
-            lineHeight: 1.6, margin: 0,
+            fontSize: 11,
+            color: 'var(--text-muted)',
+            lineHeight: 1.55, margin: 0,
             padding: '0 14px 10px',
             display: '-webkit-box',
             WebkitLineClamp: 2,
@@ -120,7 +121,7 @@ export function EntryCard({ entry, index = 0, onClick }: EntryCardProps) {
             <span style={{
               display: 'flex', alignItems: 'center', gap: 4,
               fontFamily: 'var(--font-jetbrains-mono)',
-              fontSize: 9, color: 'var(--accent)',
+              fontSize: 9, color: 'var(--text-secondary)',
             }}>
               <FolderOpen size={9} />{project.name}
             </span>

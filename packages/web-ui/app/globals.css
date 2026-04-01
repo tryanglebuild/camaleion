@@ -70,6 +70,11 @@
   --duration-md: 280ms;
   --duration-lg: 500ms;
 
+  /* ── Interactive (buttons, nav active, focus) — theme-adaptive neutral ── */
+  --ui-fg:   #1C1917;          /* dark warm in light mode */
+  --ui-bg:   #FAFAF8;          /* text on dark button */
+  --ui-glow: rgba(28,25,23,0.07);
+
   /* ── Nav ─────────────────────────────────── */
   --nav-width: 220px;
 }
@@ -104,8 +109,10 @@
   --status-in-progress: #60a5fa;
   --status-blocked:     #f87171;
 
-  /* ── Per-section accents */
-  --boot-green:          #4ade80;
+  /* ── Interactive — light on dark in dark mode ── */
+  --ui-fg:   #ECE9E4;
+  --ui-bg:   #1C1917;
+  --ui-glow: rgba(236,233,228,0.08);
   --boot-green-glow:     rgba(74,222,128,0.09);
   --boot-green-border:   rgba(74,222,128,0.22);
   --search-purple:       #a78bfa;
@@ -270,15 +277,15 @@ body {
 
 /* ── Glow border ────────────────────────────────────────────────────── */
 .glow-border {
-  border-color: var(--accent) !important;
-  box-shadow: 0 0 0 3px var(--accent-glow) !important;
+  border-color: var(--border-active) !important;
+  box-shadow: 0 0 0 3px var(--ui-glow) !important;
 }
 
 /* ── Sidebar active ─────────────────────────────────────────────────── */
 .nav-active {
-  background: rgba(37, 99, 235, 0.06);
-  border-left: 2px solid var(--accent);
-  color: var(--accent) !important;
+  background: var(--ui-glow);
+  border-left: 2px solid var(--ui-fg);
+  color: var(--ui-fg) !important;
 }
 
 /* ── Status dots ────────────────────────────────────────────────────── */
@@ -306,8 +313,8 @@ body {
 }
 .ctrl-input::placeholder { color: var(--text-muted); }
 .ctrl-input:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-glow);
+  border-color: var(--border-active);
+  box-shadow: 0 0 0 3px var(--ui-glow);
 }
 .ctrl-input option { background: var(--surface-1); color: var(--text-primary); }
 
@@ -322,9 +329,9 @@ body {
   white-space: nowrap;
 }
 .btn-primary {
-  background: var(--accent); color: #fff;
+  background: var(--ui-fg); color: var(--ui-bg);
 }
-.btn-primary:hover { background: var(--accent-dim); box-shadow: 0 2px 8px rgba(37,99,235,0.25); }
+.btn-primary:hover { background: var(--text-primary); box-shadow: 0 2px 8px var(--ui-glow); }
 .btn-secondary {
   background: var(--surface-2); color: var(--text-secondary);
   border: 1px solid var(--border);
@@ -384,8 +391,8 @@ body {
 
 /* ── Search focus ────────────────────────────────────────────────────── */
 .search-input:focus {
-  border-color: var(--accent) !important;
-  box-shadow: 0 0 0 3px var(--accent-glow) !important;
+  border-color: var(--border-active) !important;
+  box-shadow: 0 0 0 3px var(--ui-glow) !important;
 }
 
 /* ── Slide-over panel ────────────────────────────────────────────────── */
@@ -692,6 +699,6 @@ body {
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 .search-centered input:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-glow);
+  border-color: var(--border-active);
+  box-shadow: 0 0 0 3px var(--ui-glow);
 }

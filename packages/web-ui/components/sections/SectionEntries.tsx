@@ -506,7 +506,7 @@ export function SectionEntries({ direction, initialItemId }: SectionProps) {
             {viewMode === 'grid' && (
               <div data-inner-scroll style={{ flex: 1, overflowY: 'auto', padding: '20px 20px 16px' }}>
                 {loading ? (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12, alignItems: 'start' }}>
                     {Array.from({ length: 12 }).map((_, i) => (
                       <div key={i} className="skeleton" style={{ height: 140, borderRadius: 6 }} />
                     ))}
@@ -519,7 +519,7 @@ export function SectionEntries({ direction, initialItemId }: SectionProps) {
                   </div>
                 ) : (
                   <motion.div key={`${filterType}-${filterStatus}-${page}`} variants={gridVariants} initial="hidden" animate="visible"
-                    style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
+                    style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12, alignItems: 'start' }}>
                     {entries.map((entry, i) => (
                       <motion.div key={entry.id} custom={i} variants={cardGrowAnim} style={{ originX: 0 }}>
                         <EntryCard entry={entry} index={i} onClick={() => setEditEntry(entry)} />

@@ -121,7 +121,7 @@ export function SectionCompanies({ direction, onNavigateTo }: SectionProps) {
                     {/* Initial circle */}
                     <div style={{
                       width: 40, height: 40, borderRadius: 10, flexShrink: 0,
-                      background: `${color}18`, border: `1.5px solid ${color}40`,
+                      background: 'var(--surface-3)', border: '1px solid var(--border)',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                     }}>
                       <span style={{

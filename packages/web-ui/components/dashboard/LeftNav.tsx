@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
+import { ChameleonLogo } from '@/components/ui/ChameleonLogo'
 
 const NAV_EXPANDED = 220
 const NAV_COLLAPSED = 48
@@ -144,103 +145,43 @@ export function LeftNav({ current, onNavigate }: LeftNavProps) {
         overflow: 'hidden',
       }}
     >
-      {/* ── Logo + toggle ───────────────────────────────────────── */}
+      {/* ── Logo ────────────────────────────────────────────────── */}
       <div style={{
         height: 52, flexShrink: 0,
         display: 'flex', alignItems: 'center',
         borderBottom: '1px solid var(--border)',
         padding: collapsed ? '0 12px' : '0 14px',
-        justifyContent: collapsed ? 'center' : 'space-between',
-        gap: 8,
+        justifyContent: collapsed ? 'center' : 'flex-start',
+        gap: 9,
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
-          <div style={{
-            width: 26, height: 26, borderRadius: 7, flexShrink: 0,
-            background: 'var(--accent)',
-            color: '#fff',
-            fontFamily: 'var(--font-space-grotesk)',
-            fontSize: 12, fontWeight: 800,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            letterSpacing: '0.02em',
-            boxShadow: '0 2px 8px var(--accent-glow-lg)',
-          }}>
-            ⟡
-          </div>
-          <AnimatePresence>
-            {!collapsed && (
-              <motion.span
-                initial={{ opacity: 0, x: -8 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -8 }}
-                transition={{ duration: 0.18 }}
-                style={{
-                  fontFamily: 'var(--font-space-grotesk)',
-                  fontSize: 13, fontWeight: 600,
-                  color: 'var(--text-primary)',
-                  letterSpacing: '-0.01em',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                }}
-              >
-                camaleon
-              </motion.span>
-            )}
-          </AnimatePresence>
+        <div style={{
+          width: 26, height: 26, borderRadius: 7, flexShrink: 0,
+          background: 'var(--surface-2)',
+          border: '1px solid var(--border)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <ChameleonLogo size={18} color="var(--text-primary)" strokeWidth={1.6} />
         </div>
-
-        {/* Collapse toggle */}
         <AnimatePresence>
           {!collapsed && (
-            <motion.button
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={toggleCollapse}
-              title="Collapse sidebar"
+            <motion.span
+              initial={{ opacity: 0, x: -8 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -8 }}
+              transition={{ duration: 0.18 }}
               style={{
-                width: 22, height: 22, borderRadius: 5, flexShrink: 0,
-                background: 'transparent',
-                border: '1px solid var(--border)',
-                cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: 'var(--text-muted)',
-                transition: 'color 0.15s, border-color 0.15s',
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.color = 'var(--text-primary)'
-                e.currentTarget.style.borderColor = 'var(--border-active)'
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.color = 'var(--text-muted)'
-                e.currentTarget.style.borderColor = 'var(--border)'
+                fontFamily: 'var(--font-space-grotesk)',
+                fontSize: 13, fontWeight: 600,
+                color: 'var(--text-primary)',
+                letterSpacing: '-0.01em',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
               }}
             >
-              <ChevronLeft size={11} strokeWidth={2} />
-            </motion.button>
+              camaleon
+            </motion.span>
           )}
         </AnimatePresence>
-
-        {/* Expand button (collapsed state) */}
-        {collapsed && (
-          <motion.button
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            onClick={toggleCollapse}
-            title="Expand sidebar"
-            style={{
-              position: 'absolute', bottom: -1, left: '50%', transform: 'translateX(-50%)',
-              width: 20, height: 20, borderRadius: '50%',
-              background: 'var(--surface-1)',
-              border: '1px solid var(--border)',
-              cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: 'var(--text-muted)',
-              zIndex: 10,
-            }}
-          >
-            <ChevronRight size={9} strokeWidth={2} />
-          </motion.button>
-        )}
       </div>
 
       {/* ── Nav groups ──────────────────────────────────────────── */}
@@ -277,7 +218,7 @@ export function LeftNav({ current, onNavigate }: LeftNavProps) {
                       width: '100%',
                       height: 34,
                       borderRadius: 7,
-                      border: isActive ? '1px solid var(--accent-glow-lg)' : '1px solid transparent',
+                      border: isActive ? '1px solid var(--ui-glow)' : '1px solid transparent',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: collapsed ? 'center' : 'flex-start',
@@ -285,8 +226,8 @@ export function LeftNav({ current, onNavigate }: LeftNavProps) {
                       padding: collapsed ? '0' : '0 10px',
                       cursor: 'pointer',
                       position: 'relative',
-                      background: isActive ? 'var(--accent-glow)' : 'transparent',
-                      color: isActive ? 'var(--accent)' : hovered === i ? 'var(--text-primary)' : 'var(--text-muted)',
+                      background: isActive ? 'var(--ui-glow)' : 'transparent',
+                      color: isActive ? 'var(--ui-fg)' : hovered === i ? 'var(--text-primary)' : 'var(--text-muted)',
                       transition: 'background 0.15s, color 0.15s, border-color 0.15s',
                     }}
                     onMouseOver={e => {
@@ -307,7 +248,7 @@ export function LeftNav({ current, onNavigate }: LeftNavProps) {
                           style={{
                             position: 'absolute', left: -8, top: '50%', marginTop: -10,
                             width: 3, height: 20,
-                            borderRadius: 2, background: 'var(--accent)',
+                            borderRadius: 2, background: 'var(--ui-fg)',
                             originY: 0.5,
                           }}
                         />
@@ -346,7 +287,7 @@ export function LeftNav({ current, onNavigate }: LeftNavProps) {
                           style={{
                             fontFamily: 'var(--font-jetbrains-mono)',
                             fontSize: 9, fontWeight: 500,
-                            color: isActive ? 'var(--accent)' : 'var(--text-muted)',
+                            color: isActive ? 'var(--ui-fg)' : 'var(--text-muted)',
                             flexShrink: 0,
                             minWidth: 16,
                             textAlign: 'right',
@@ -396,9 +337,36 @@ export function LeftNav({ current, onNavigate }: LeftNavProps) {
       {/* ── Footer ──────────────────────────────────────────────── */}
       <div style={{
         borderTop: '1px solid var(--border)',
-        padding: '10px 0 12px',
-        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+        padding: '8px 0 10px',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
       }}>
+        {/* Collapse / expand toggle — always visible */}
+        <button
+          onClick={toggleCollapse}
+          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          style={{
+            width: collapsed ? 30 : 'calc(100% - 28px)',
+            height: 28, borderRadius: 6,
+            border: '1px solid var(--border)',
+            background: 'transparent', cursor: 'pointer',
+            display: 'flex', alignItems: 'center',
+            justifyContent: collapsed ? 'center' : 'flex-start',
+            gap: 6, padding: collapsed ? '0' : '0 8px',
+            color: 'var(--text-muted)',
+            transition: 'color 0.15s, border-color 0.15s, width 0.22s',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-primary)'; e.currentTarget.style.borderColor = 'var(--border-active)' }}
+          onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border)' }}
+        >
+          {collapsed
+            ? <ChevronRight size={11} strokeWidth={2} />
+            : <>
+                <ChevronLeft size={11} strokeWidth={2} />
+                <span style={{ fontFamily: 'var(--font-inter)', fontSize: 11, whiteSpace: 'nowrap' }}>Collapse</span>
+              </>
+          }
+        </button>
+
         {/* Status + theme row */}
         {collapsed ? (
           <>
@@ -416,7 +384,7 @@ export function LeftNav({ current, onNavigate }: LeftNavProps) {
                 color: 'var(--text-muted)',
                 transition: 'color 0.15s, border-color 0.15s',
               }}
-              onMouseEnter={e => { e.currentTarget.style.color = 'var(--accent)'; e.currentTarget.style.borderColor = 'var(--accent)' }}
+              onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-primary)'; e.currentTarget.style.borderColor = 'var(--border-active)' }}
               onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border)' }}
             >
               {dark ? <Sun size={11} strokeWidth={1.5} /> : <Moon size={11} strokeWidth={1.5} />}
@@ -442,7 +410,7 @@ export function LeftNav({ current, onNavigate }: LeftNavProps) {
                   color: 'var(--text-muted)',
                   transition: 'color 0.15s, border-color 0.15s',
                 }}
-                onMouseEnter={e => { e.currentTarget.style.color = 'var(--accent)'; e.currentTarget.style.borderColor = 'var(--accent)' }}
+                onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-primary)'; e.currentTarget.style.borderColor = 'var(--border-active)' }}
                 onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border)' }}
               >
                 {dark ? <Sun size={11} strokeWidth={1.5} /> : <Moon size={11} strokeWidth={1.5} />}

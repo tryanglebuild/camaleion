@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 
+import { ChameleonLogo } from '@/components/ui/ChameleonLogo'
+
 type Phase = 'loading' | 'success' | 'error'
 
 const STEPS = [
@@ -97,13 +99,14 @@ export default function BootPage() {
           style={{ marginBottom: 20 }}
         >
           <div style={{
-            width: 48, height: 48, borderRadius: 13,
-            background: 'var(--accent)',
+            width: 64, height: 64, borderRadius: 18,
+            background: 'var(--surface-2)',
+            border: '1px solid var(--border)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontFamily: 'var(--font-space-grotesk)', fontSize: 15, fontWeight: 700,
-            color: '#fff', letterSpacing: '0.02em',
-            boxShadow: '0 4px 20px rgba(37,99,235,0.25)',
-          }}>CA</div>
+            boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+          }}>
+            <ChameleonLogo size={40} color="var(--text-primary)" strokeWidth={1.6} />
+          </div>
         </motion.div>
 
         {/* Name */}

@@ -295,21 +295,18 @@ export function SectionProjects({ direction, onNavigateTo }: SectionProps) {
           }
         />
 
-        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 32px' }}>
+        {/* ── Add bar ─────────────────────────────────────────────── */}
         <AnimatePresence>
           {adding && (
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-              style={{ marginBottom: 14, overflow: 'hidden', flexShrink: 0 }}>
-              <div style={{ background: 'rgba(6,182,212,0.04)', border: '1px solid rgba(6,182,212,0.2)',
-                borderRadius: 6, padding: '10px 14px', display: 'flex', gap: 10 }}>
+              style={{ overflow: 'hidden', flexShrink: 0, borderBottom: '1px solid var(--border)' }}>
+              <div style={{ padding: '10px 32px', display: 'flex', gap: 10, alignItems: 'center' }}>
                 <input autoFocus value={newName} onChange={e => setNewName(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') handleAdd(); if (e.key === 'Escape') setAdding(false) }}
                   placeholder="Project name…"
-                  style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none',
-                    fontFamily: 'var(--font-inter)', fontSize: 13, color: 'var(--text-primary)' }} />
-                <button onClick={handleAdd} className="btn btn-primary">
-                  Create
-                </button>
+                  className="ctrl-input"
+                  style={{ flex: 1, fontFamily: 'var(--font-inter)', fontSize: 13 }} />
+                <button onClick={handleAdd} className="btn btn-primary">Create</button>
                 <button onClick={() => setAdding(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
                   <X size={14} />
                 </button>
@@ -318,16 +315,16 @@ export function SectionProjects({ direction, onNavigateTo }: SectionProps) {
           )}
         </AnimatePresence>
 
-        {/* Grid */}
-        <div data-inner-scroll style={{ flex: 1, overflowY: "auto", minHeight: 0, paddingTop: 8 }}>
+        {/* ── Grid — scrollable ──────────────────────────────────── */}
+        <div data-inner-scroll style={{ flex: 1, overflowY: 'auto', padding: '20px 32px' }}>
           {loading ? (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="skeleton" style={{ height: 150, marginBottom: 0 }} />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14, alignItems: 'start' }}>
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="skeleton" style={{ height: 140, borderRadius: 8 }} />
               ))}
             </div>
           ) : projects.length === 0 ? (
-            <div className="empty-state" style={{ paddingTop: 60 }}>
+            <div className="empty-state" style={{ paddingTop: 80 }}>
               <div className="empty-state-icon">📁</div>
               <p>No projects yet</p>
               <p className="empty-state-hint">Create a project to start organising your work</p>
@@ -337,85 +334,124 @@ export function SectionProjects({ direction, onNavigateTo }: SectionProps) {
               variants={gridVariants}
               initial="hidden"
               animate="visible"
-              style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14, paddingBottom: 20 }}
+              style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14, alignItems: 'start', paddingBottom: 20 }}
             >
               {projects.map((p, i) => {
-                const hc = healthColor(p.health)
                 const sc = STATUS_COLOR[p.status] ?? '#52525B'
+                const total = p.health.done + p.health.pending + p.health.in_progress + p.health.blocked || 1
                 return (
                   <motion.div key={p.id}
                     custom={i}
                     variants={cardGrowAnim}
                     onClick={() => setDetailProject(p)}
                     style={{
-                      background: 'var(--surface-1)', border: '1px solid var(--border)',
-                      borderRadius: 6, padding: '12px 14px 0', cursor: 'pointer',
-                      position: 'relative', originX: 0,
-                      display: 'flex', flexDirection: 'column', overflow: 'hidden',
+                      background: 'var(--surface-1)',
+                      border: '1px solid var(--border)',
+                      borderRadius: 8,
+                      cursor: 'pointer',
+                      position: 'relative',
+                      overflow: 'hidden',
+                      display: 'flex', flexDirection: 'column',
                     }}
-                    whileHover={{ y: -3, borderColor: 'var(--border-active)', boxShadow: `0 4px 16px rgba(0,0,0,0.1)` }}
+                    whileHover={{ y: -2, borderColor: 'var(--border-active)', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}
                   >
-                    {/* Colored top accent (2px absolute, so hover border-color won't override it) */}
-                    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: sc }} />
+                    {/* Top accent strip */}
+                    <div style={{ height: 3, background: sc, flexShrink: 0 }} />
 
-                    {/* Top: large initial + name + status badge */}
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 8, paddingTop: 2 }}>
-                      <span style={{ fontFamily: 'var(--font-space-grotesk)', fontSize: 32, fontWeight: 700,
-                        color: sc, lineHeight: 1, flexShrink: 0, opacity: 0.9 }}>
-                        {p.name[0]?.toUpperCase() ?? '?'}
-                      </span>
-                      <div style={{ flex: 1, minWidth: 0, paddingTop: 3 }}>
-                        <h3 style={{ fontFamily: 'var(--font-inter)', fontSize: 13, fontWeight: 700,
-                          color: 'var(--text-primary)', margin: '0 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {/* Card body */}
+                    <div style={{ padding: '14px 16px 12px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+
+                      {/* Row 1: name + status + count */}
+                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+                        <h3 style={{
+                          fontFamily: 'var(--font-space-grotesk)', fontSize: 14, fontWeight: 700,
+                          color: 'var(--text-primary)', margin: 0, lineHeight: 1.3,
+                          flex: 1, minWidth: 0,
+                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        }}>
                           {p.name}
                         </h3>
-                        <span style={{ fontFamily: 'var(--font-inter)', fontSize: 10, letterSpacing: '0.04em',
-                          padding: '1px 5px', borderRadius: 2,
-                          border: `1px solid ${sc}40`, color: sc, fontWeight: 500 }}>
-                          {STATUS_LABEL[p.status] ?? p.status}
+                        <span style={{
+                          fontFamily: 'var(--font-jetbrains-mono)', fontSize: 9,
+                          color: 'var(--text-muted)', background: 'var(--surface-2)',
+                          border: '1px solid var(--border)', borderRadius: 8,
+                          padding: '2px 6px', flexShrink: 0, lineHeight: 1,
+                        }}>
+                          {p.entryCount}
                         </span>
                       </div>
-                    </div>
 
-                    {p.description && (
-                      <p style={{ fontFamily: 'var(--font-inter)', fontSize: 11, color: 'var(--text-secondary)',
-                        margin: '0 0 8px', lineHeight: 1.5,
-                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {p.description}
-                      </p>
-                    )}
-
-                    {/* Stack tags */}
-                    {p.stack && p.stack.length > 0 && (
-                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 8 }}>
-                        {p.stack.slice(0, 4).map(s => (
-                          <span key={s} style={{ fontFamily: 'var(--font-inter)', fontSize: 10,
-                            padding: '1px 5px', borderRadius: 2, background: 'var(--surface-2)',
-                            border: '1px solid var(--border)', color: 'var(--text-muted)', fontWeight: 500 }}>
+                      {/* Row 2: status badge + stack pills */}
+                      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 5 }}>
+                        <span style={{
+                          fontFamily: 'var(--font-inter)', fontSize: 9, fontWeight: 600, letterSpacing: '0.05em',
+                          padding: '2px 6px', borderRadius: 3, textTransform: 'uppercase',
+                          border: `1px solid ${sc}40`, color: sc,
+                          background: `${sc}0f`,
+                        }}>
+                          {STATUS_LABEL[p.status] ?? p.status}
+                        </span>
+                        {p.stack?.slice(0, 3).map(s => (
+                          <span key={s} style={{
+                            fontFamily: 'var(--font-inter)', fontSize: 9,
+                            padding: '2px 5px', borderRadius: 3,
+                            background: 'var(--surface-2)', border: '1px solid var(--border)',
+                            color: 'var(--text-muted)',
+                          }}>
                             {s}
                           </span>
                         ))}
-                      </div>
-                    )}
-
-                    {/* Footer: health stats + entry count badge */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0 8px', marginTop: 'auto' }}>
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        {[['✓', p.health.done, '#22C55E'], ['…', p.health.pending + p.health.in_progress, '#EAB308'], ['✗', p.health.blocked, '#EF4444']].map(([icon, n, c]) => (n as number) > 0 ? (
-                          <span key={icon as string} style={{ fontFamily: 'var(--font-inter)', fontSize: 10, color: c as string }}>
-                            {icon} {n as number}
+                        {(p.stack?.length ?? 0) > 3 && (
+                          <span style={{ fontFamily: 'var(--font-inter)', fontSize: 9, color: 'var(--text-muted)' }}>
+                            +{(p.stack?.length ?? 0) - 3}
                           </span>
-                        ) : null)}
+                        )}
                       </div>
-                      <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 10, color: 'var(--text-muted)',
-                        background: 'var(--surface-2)', border: '1px solid var(--border)',
-                        borderRadius: 8, padding: '1px 6px' }}>
-                        {p.entryCount}
-                      </span>
+
+                      {/* Description */}
+                      {p.description && (
+                        <p style={{
+                          fontFamily: 'var(--font-inter)', fontSize: 11,
+                          color: 'var(--text-secondary)', margin: 0, lineHeight: 1.55,
+                          display: '-webkit-box', WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical', overflow: 'hidden',
+                        }}>
+                          {p.description}
+                        </p>
+                      )}
+
+                      {/* Health stats row */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        {p.health.done > 0 && (
+                          <span style={{ fontFamily: 'var(--font-inter)', fontSize: 10, color: '#22C55E', display: 'flex', alignItems: 'center', gap: 3 }}>
+                            <span style={{ fontWeight: 600 }}>{p.health.done}</span>
+                            <span style={{ opacity: 0.7 }}>done</span>
+                          </span>
+                        )}
+                        {(p.health.pending + p.health.in_progress) > 0 && (
+                          <span style={{ fontFamily: 'var(--font-inter)', fontSize: 10, color: '#EAB308', display: 'flex', alignItems: 'center', gap: 3 }}>
+                            <span style={{ fontWeight: 600 }}>{p.health.pending + p.health.in_progress}</span>
+                            <span style={{ opacity: 0.7 }}>open</span>
+                          </span>
+                        )}
+                        {p.health.blocked > 0 && (
+                          <span style={{ fontFamily: 'var(--font-inter)', fontSize: 10, color: '#EF4444', display: 'flex', alignItems: 'center', gap: 3 }}>
+                            <span style={{ fontWeight: 600 }}>{p.health.blocked}</span>
+                            <span style={{ opacity: 0.7 }}>blocked</span>
+                          </span>
+                        )}
+                      </div>
+
                     </div>
 
-                    {/* HealthBar flush at card bottom */}
-                    <HealthBar h={p.health} />
+                    {/* Health bar flush at bottom */}
+                    <div style={{ height: 4, display: 'flex', flexShrink: 0 }}>
+                      {p.health.done > 0 && <div style={{ flex: p.health.done / total, background: '#22C55E' }} />}
+                      {(p.health.pending + p.health.in_progress) > 0 && <div style={{ flex: (p.health.pending + p.health.in_progress) / total, background: '#EAB308' }} />}
+                      {p.health.blocked > 0 && <div style={{ flex: p.health.blocked / total, background: '#EF4444' }} />}
+                      {total === 1 && <div style={{ flex: 1, background: 'var(--border)' }} />}
+                    </div>
+
                   </motion.div>
                 )
               })}
@@ -423,10 +459,13 @@ export function SectionProjects({ direction, onNavigateTo }: SectionProps) {
           )}
         </div>
 
-        {/* Pagination */}
+        {/* ── Pagination — sticky bottom, outside scroll ─────────── */}
         {totalPages > 1 && (
-          <div style={{ borderTop: '1px solid var(--border)', padding: '10px 0',
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+          <div style={{
+            borderTop: '1px solid var(--border)', padding: '10px 32px',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            flexShrink: 0, background: 'var(--surface-1)',
+          }}>
             <button onClick={() => { setPage(p => p - 1); load(page - 1) }} disabled={page === 0} className="btn btn-secondary"
               style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               <ChevronLeft size={11} /> Prev
@@ -438,7 +477,6 @@ export function SectionProjects({ direction, onNavigateTo }: SectionProps) {
             </button>
           </div>
         )}
-      </div>
 
       {/* Slide-over */}
       <AnimatePresence>
