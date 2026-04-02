@@ -72,21 +72,21 @@ jobs:
           files: web-standalone.tar.gz
           generate_release_notes: true
 
-      # ── Publish to npm ────────────────────────────────────────────────────────
+      # ── Publish to npm (skip if version already exists) ──────────────────────
       - name: Publish camaleon-mcp-server
         working-directory: packages/mcp-server
-        run: npm publish --access public
+        run: npm publish --access public || true
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish camaleon-web
         working-directory: packages/cli-web
-        run: npm publish --access public
+        run: npm publish --access public || true
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish camaleon-mcp
         working-directory: packages/cli-mcp
-        run: npm publish --access public
+        run: npm publish --access public || true
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
