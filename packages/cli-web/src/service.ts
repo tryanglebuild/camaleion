@@ -1,7 +1,7 @@
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { writeFileSync, mkdirSync, existsSync, unlinkSync } from 'node:fs'
-import { INSTALL_DIR, PORT, SERVICE_NAME, exec, tryExec, hasSystemd, isMac } from './utils.js'
+import { INSTALL_DIR, SERVER_JS, PORT, SERVICE_NAME, exec, tryExec, hasSystemd, isMac } from './utils.js'
 
 // ─── Linux systemd (user service, no sudo needed) ─────────────────────────────
 
@@ -22,7 +22,7 @@ Type=simple
 WorkingDirectory=${INSTALL_DIR}
 Environment=PORT=${PORT}
 Environment=HOSTNAME=0.0.0.0
-ExecStart=${node} ${join(INSTALL_DIR, 'server.js')}
+ExecStart=${node} ${SERVER_JS}
 Restart=always
 RestartSec=5
 
@@ -50,7 +50,7 @@ function launchdPlist(): string {
   <key>ProgramArguments</key>
   <array>
     <string>${node}</string>
-    <string>${join(INSTALL_DIR, 'server.js')}</string>
+    <string>${SERVER_JS}</string>
   </array>
   <key>EnvironmentVariables</key>
   <dict>

@@ -4,6 +4,8 @@ import { execSync, type ExecSyncOptionsWithStringEncoding } from 'node:child_pro
 import { existsSync, readFileSync } from 'node:fs'
 
 export const INSTALL_DIR = join(homedir(), '.camaleon', 'web')
+// Next.js standalone in a monorepo preserves the full directory structure
+export const SERVER_JS = join(INSTALL_DIR, 'packages', 'web-ui', 'server.js')
 export const VERSION_FILE = join(INSTALL_DIR, 'version.json')
 export const GITHUB_REPO = 'tryanglebuild/camaleion'
 export const PORT = 4069

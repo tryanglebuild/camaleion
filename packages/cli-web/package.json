@@ -1,6 +1,6 @@
 {
   "name": "camaleon-web",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Context Engine — Web UI. Installs and runs the dashboard on your machine.",
   "type": "module",
   "bin": {
