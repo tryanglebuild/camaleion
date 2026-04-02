@@ -1,7 +1,7 @@
 'use client'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useState, useEffect, useCallback } from 'react'
-import { X, Plus, ChevronLeft, ChevronRight, Grid3X3, Columns2, AlignLeft, Pencil, Eye } from 'lucide-react'
+import { X, Plus, ChevronLeft, ChevronRight, Grid3X3, Columns2, AlignLeft, Pencil, Eye, CheckSquare, Square, Trash2, CheckCheck, Clock, BookOpen } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { sectionVariants } from './sectionVariants'
@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabase'
 import { EntryCard } from '@/components/dashboard/EntryCard'
 import { AddEntryModal } from '@/components/dashboard/AddEntryModal'
 import { EditEntryModal } from '@/components/dashboard/EditEntryModal'
+import { useToast } from '@/components/ui/Toaster'
 import type { Entry, EntryType, EntryStatus } from '@context-engine/shared'
 
 const TYPES: EntryType[] = ['task', 'note', 'decision', 'meet', 'idea', 'log']
@@ -79,6 +80,23 @@ function DetailPanel({ entry, onClose, onSaved }: { entry: Entry; onClose: () =>
           </span>
           <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }}>
             {saving && <span style={{ fontFamily: 'var(--font-inter)', fontSize: 11, color: 'var(--text-muted)' }}>saving…</span>}
+            <a
+              href={`/dashboard/notes/${entry.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Open full page"
+              style={{
+                display: 'flex', alignItems: 'center', gap: 4,
+                background: 'none', border: '1px solid var(--border)', borderRadius: 4,
+                padding: '3px 8px', color: 'var(--text-muted)',
+                fontFamily: 'var(--font-inter)', fontSize: 10,
+                textDecoration: 'none', transition: 'color 0.15s, border-color 0.15s',
+              }}
+              onMouseEnter={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.color = 'var(--accent)'; el.style.borderColor = 'var(--accent)' }}
+              onMouseLeave={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.color = 'var(--text-muted)'; el.style.borderColor = 'var(--border)' }}
+            >
+              <BookOpen size={11} /> Full page
+            </a>
             <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', lineHeight: 1 }}>
               <X size={14} />
             </button>
@@ -328,6 +346,7 @@ import { gridVariants, cardVariants as cardGrowAnim } from '@/lib/animation-vari
 import { SectionWrapper, SectionHeader } from './SectionLayout'
 
 export function SectionEntries({ direction, initialItemId }: SectionProps) {
+  const { toast } = useToast()
   const [entries, setEntries] = useState<Entry[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(0)
@@ -339,12 +358,84 @@ export function SectionEntries({ direction, initialItemId }: SectionProps) {
   const [editEntry, setEditEntry] = useState<Entry | null>(null)
   const [selectedEntry, setSelectedEntry] = useState<Entry | null>(null)
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
+  const [selectMode, setSelectMode] = useState(false)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [bulkLoading, setBulkLoading] = useState(false)
+
+  function toggleSelect(id: string) {
+    setSelected(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  function exitSelect() { setSelectMode(false); setSelected(new Set()) }
+
+  async function bulkDelete() {
+    if (!selected.size) return
+    setBulkLoading(true)
+    await Promise.all([...selected].map(id =>
+      fetch(`/api/entries/${id}`, { method: 'DELETE' })
+    ))
+    setBulkLoading(false)
+    toast(`${selected.size} entries deleted`, 'warning')
+    exitSelect()
+    load(page)
+  }
+
+  async function bulkStatus(status: 'done' | 'pending') {
+    if (!selected.size) return
+    setBulkLoading(true)
+    await Promise.all([...selected].map(id =>
+      fetch(`/api/entries/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      })
+    ))
+    setBulkLoading(false)
+    toast(`${selected.size} entries marked ${status}`)
+    exitSelect()
+    load(page)
+  }
+
+  async function handlePin(entry: Entry, e: React.MouseEvent) {
+    e.stopPropagation()
+    const next = !entry.pinned
+    await fetch(`/api/entries/${entry.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pinned: next }),
+    })
+    toast(next ? 'Entry pinned' : 'Entry unpinned')
+    load(page)
+  }
+
+  async function handleDuplicate(entry: Entry, e: React.MouseEvent) {
+    e.stopPropagation()
+    await fetch('/api/entries', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: entry.type,
+        title: `[Copy] ${entry.title}`,
+        content: entry.content ?? undefined,
+        status: 'pending',
+        tags: entry.tags ?? undefined,
+        project: (entry.project as { name: string } | null)?.name ?? undefined,
+      }),
+    })
+    toast('Entry duplicated')
+    load(page)
+  }
 
   const load = useCallback(async (p = 0) => {
     setLoading(true)
     let q = supabase
       .from('entries')
       .select('*, project:projects(id,name), person:people(id,name)', { count: 'exact' })
+      .order('pinned', { ascending: false })
       .order('created_at', { ascending: false })
       .range(p * PAGE_SIZE, p * PAGE_SIZE + PAGE_SIZE - 1)
     if (filterType) q = q.eq('type', filterType)
@@ -387,12 +478,6 @@ export function SectionEntries({ direction, initialItemId }: SectionProps) {
         <SectionHeader
           title="Memory"
           subtitle={`${total} entries${filterType ? ` · ${filterType}` : ''}`}
-          rightSlot={
-            <button onClick={() => setModalOpen(true)} className="btn btn-primary"
-              style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11 }}>
-              <Plus size={11} /> New entry
-            </button>
-          }
         />
 
         <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
@@ -471,31 +556,58 @@ export function SectionEntries({ direction, initialItemId }: SectionProps) {
 
         {/* Main content */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-          {/* Top bar */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 20px',
-            borderBottom: '1px solid var(--border)', flexShrink: 0, background: 'var(--surface-1)',
-            position: 'relative', zIndex: 10 }}>
-            {/* Active type accent */}
-            {activeTypeMeta && (
-              <div style={{ height: 20, width: 3, borderRadius: 2, background: activeTypeMeta.color, flexShrink: 0 }} />
-            )}
-            <div style={{ flex: 1 }} />
-            {/* View mode */}
-            <div style={{ display: 'flex', gap: 2, background: 'var(--surface-2)', borderRadius: 6, padding: 3, border: '1px solid var(--border)' }}>
-              {([['grid', Grid3X3], ['split', Columns2], ['timeline', AlignLeft]] as const).map(([mode, Icon]) => (
+          {/* Toolbar — view modes + actions, separate from section header */}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            padding: '8px 20px', borderBottom: '1px solid var(--border)',
+            flexShrink: 0, background: 'var(--surface-1)',
+          }}>
+            {/* View mode segmented control */}
+            <div style={{ display: 'flex', gap: 1, background: 'var(--surface-2)', borderRadius: 6, padding: 2, border: '1px solid var(--border)' }}>
+              {([['grid', Grid3X3, 'Grid'], ['split', Columns2, 'Split'], ['timeline', AlignLeft, 'List']] as const).map(([mode, Icon, label]) => (
                 <button key={mode} onClick={() => { setViewMode(mode); setSelectedEntry(null) }}
-                  style={{ padding: '4px 10px', borderRadius: 4, border: 'none', cursor: 'pointer',
-                    background: viewMode === mode ? 'var(--accent)' : 'transparent',
-                    color: viewMode === mode ? '#fff' : 'var(--text-muted)',
-                    display: 'flex', alignItems: 'center', gap: 4, transition: 'all 0.12s',
-                    fontFamily: 'var(--font-inter)', fontSize: 11,
-                    fontWeight: viewMode === mode ? 500 : 400 }}>
-                  <Icon size={11} />
-                  <span style={{ textTransform: 'capitalize' }}>{mode}</span>
+                  title={label}
+                  style={{
+                    padding: '4px 9px', borderRadius: 4, border: 'none', cursor: 'pointer',
+                    background: viewMode === mode ? 'var(--surface-3)' : 'transparent',
+                    color: viewMode === mode ? 'var(--text-primary)' : 'var(--text-muted)',
+                    display: 'flex', alignItems: 'center', transition: 'all 0.12s',
+                  }}>
+                  <Icon size={12} />
                 </button>
               ))}
             </div>
-            <button onClick={() => setModalOpen(true)} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+
+            <div style={{ width: 1, height: 16, background: 'var(--border)' }} />
+
+            {/* Select toggle — icon only */}
+            <button
+              onClick={() => { if (selectMode) exitSelect(); else setSelectMode(true) }}
+              title={selectMode ? 'Cancel selection' : 'Select entries'}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                width: 28, height: 28, borderRadius: 6, border: '1px solid var(--border)',
+                background: selectMode ? 'var(--accent-glow)' : 'transparent',
+                color: selectMode ? 'var(--accent)' : 'var(--text-muted)',
+                cursor: 'pointer', transition: 'all 0.12s',
+                borderColor: selectMode ? 'var(--accent)' : 'var(--border)',
+              }}
+              onMouseEnter={e => { if (!selectMode) { e.currentTarget.style.color = 'var(--text-primary)'; e.currentTarget.style.borderColor = 'var(--border-active)' }}}
+              onMouseLeave={e => { if (!selectMode) { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border)' }}}
+            >
+              {selectMode ? <CheckSquare size={12} /> : <Square size={12} />}
+            </button>
+
+            {selectMode && selected.size > 0 && (
+              <span style={{ fontFamily: 'var(--font-inter)', fontSize: 11, color: 'var(--accent)', fontWeight: 500 }}>
+                {selected.size} selected
+              </span>
+            )}
+
+            <div style={{ flex: 1 }} />
+
+            <button onClick={() => setModalOpen(true)} className="btn btn-primary"
+              style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12 }}>
               <Plus size={12} /> New entry
             </button>
           </div>
@@ -521,8 +633,14 @@ export function SectionEntries({ direction, initialItemId }: SectionProps) {
                   <motion.div key={`${filterType}-${filterStatus}-${page}`} variants={gridVariants} initial="hidden" animate="visible"
                     style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12, alignItems: 'start' }}>
                     {entries.map((entry, i) => (
-                      <motion.div key={entry.id} custom={i} variants={cardGrowAnim} style={{ originX: 0 }}>
-                        <EntryCard entry={entry} index={i} onClick={() => setEditEntry(entry)} />
+                      <motion.div key={entry.id} custom={i} variants={cardGrowAnim}
+                        style={{ originX: 0, outline: selected.has(entry.id) ? '2px solid var(--accent)' : 'none', borderRadius: 8 }}>
+                        <EntryCard
+                          entry={entry} index={i}
+                          onClick={() => selectMode ? toggleSelect(entry.id) : setEditEntry(entry)}
+                          onPin={selectMode ? undefined : e => handlePin(entry, e)}
+                          onDuplicate={selectMode ? undefined : e => handleDuplicate(entry, e)}
+                        />
                       </motion.div>
                     ))}
                   </motion.div>
@@ -595,6 +713,51 @@ export function SectionEntries({ direction, initialItemId }: SectionProps) {
 
       <AddEntryModal open={modalOpen} onClose={() => setModalOpen(false)} onSuccess={() => load(page)} />
       <EditEntryModal entry={editEntry} onClose={() => setEditEntry(null)} onSaved={() => load(page)} />
+
+      {/* Bulk action bar */}
+      <AnimatePresence>
+        {selectMode && selected.size > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+            style={{
+              position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+              zIndex: 9000,
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '10px 16px',
+              background: 'var(--surface-1)',
+              border: '1px solid var(--border)',
+              borderRadius: 12,
+              boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+            }}
+          >
+            <span style={{ fontFamily: 'var(--font-inter)', fontSize: 12, color: 'var(--text-secondary)', paddingRight: 8, borderRight: '1px solid var(--border)' }}>
+              {selected.size} selected
+            </span>
+            <button onClick={() => bulkStatus('done')} disabled={bulkLoading}
+              className="btn btn-secondary"
+              style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11 }}>
+              <CheckCheck size={11} /> Mark done
+            </button>
+            <button onClick={() => bulkStatus('pending')} disabled={bulkLoading}
+              className="btn btn-secondary"
+              style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11 }}>
+              <Clock size={11} /> Mark pending
+            </button>
+            <button onClick={bulkDelete} disabled={bulkLoading}
+              className="btn"
+              style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11,
+                borderColor: 'rgba(239,68,68,0.4)', color: '#EF4444' }}>
+              <Trash2 size={11} /> {bulkLoading ? 'Deleting…' : 'Delete'}
+            </button>
+            <button onClick={exitSelect} className="btn btn-ghost" style={{ fontSize: 11 }}>
+              Cancel
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   )
 }

@@ -3,11 +3,12 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard, Database, Search, FolderOpen, Users,
   CheckSquare, ShieldCheck, BarChart2, ListChecks, Sparkles,
-  Network, Building2, Sun, Moon, ChevronLeft, ChevronRight,
+  Network, Building2, Sun, Moon, ChevronLeft, ChevronRight, Settings, GitCommitVertical,
 } from 'lucide-react'
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { ChameleonLogo } from '@/components/ui/ChameleonLogo'
+import { useIsMobile } from '@/lib/use-window-width'
 
 const NAV_EXPANDED = 220
 const NAV_COLLAPSED = 48
@@ -86,7 +87,9 @@ const NAV_GROUPS = [
       { icon: BarChart2,   label: 'Analyses', index: 8,  countKey: 'analyses' },
       { icon: ListChecks,  label: 'Plans',    index: 9,  countKey: 'plans' },
       { icon: Sparkles,    label: 'Content',  index: 10, countKey: 'posts' },
-      { icon: Network,     label: 'Graph',    index: 11, countKey: null },
+      { icon: Network,            label: 'Graph',    index: 11, countKey: null },
+      { icon: Settings,           label: 'Settings', index: 12, countKey: null },
+      { icon: GitCommitVertical,  label: 'Timeline', index: 13, countKey: null },
     ],
   },
 ]
@@ -101,25 +104,38 @@ interface LeftNavProps {
 export function LeftNav({ current, onNavigate }: LeftNavProps) {
   const [hovered, setHovered] = useState<number | null>(null)
   const [collapsed, setCollapsed] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
   const throttleRef = useRef(false)
   const { dark, toggle } = useTheme()
   const counts = useNavCounts()
+  const isMobile = useIsMobile()
 
   // Init collapsed from localStorage + set CSS var
   useEffect(() => {
+    if (isMobile) {
+      document.documentElement.style.setProperty('--nav-width', '0px')
+      return
+    }
     const saved = localStorage.getItem('nav-collapsed') === '1'
     setCollapsed(saved)
     document.documentElement.style.setProperty('--nav-width', `${saved ? NAV_COLLAPSED : NAV_EXPANDED}px`)
-  }, [])
+  }, [isMobile])
+
+  // Close mobile nav when navigating
+  const handleMobileNavigate = useCallback((i: number) => {
+    onNavigate(i)
+    setMobileOpen(false)
+  }, [onNavigate])
 
   const toggleCollapse = useCallback(() => {
+    if (isMobile) { setMobileOpen(v => !v); return }
     setCollapsed(prev => {
       const next = !prev
       localStorage.setItem('nav-collapsed', next ? '1' : '0')
       document.documentElement.style.setProperty('--nav-width', `${next ? NAV_COLLAPSED : NAV_EXPANDED}px`)
       return next
     })
-  }, [])
+  }, [isMobile])
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.stopPropagation()
@@ -129,17 +145,50 @@ export function LeftNav({ current, onNavigate }: LeftNavProps) {
     setTimeout(() => { throttleRef.current = false }, 700)
   }, [current, onNavigate])
 
-  const navWidth = collapsed ? NAV_COLLAPSED : NAV_EXPANDED
+  const navWidth = isMobile ? NAV_EXPANDED : (collapsed ? NAV_COLLAPSED : NAV_EXPANDED)
+  const navVisible = isMobile ? mobileOpen : true
 
   return (
+    <>
+      {/* Mobile hamburger button */}
+      {isMobile && (
+        <button
+          onClick={() => setMobileOpen(v => !v)}
+          style={{
+            position: 'fixed', top: 12, left: 12, zIndex: 200,
+            width: 36, height: 36, borderRadius: 8,
+            background: 'var(--surface-1)', border: '1px solid var(--border)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', color: 'var(--text-primary)',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+          }}
+        >
+          {mobileOpen
+            ? <ChevronLeft size={16} strokeWidth={2} />
+            : <ChevronRight size={16} strokeWidth={2} />}
+        </button>
+      )}
+
+      {/* Mobile backdrop */}
+      <AnimatePresence>
+        {isMobile && mobileOpen && (
+          <motion.div
+            key="mobile-backdrop"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            onClick={() => setMobileOpen(false)}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 98 }}
+          />
+        )}
+      </AnimatePresence>
+
     <motion.div
-      onWheel={handleWheel}
-      animate={{ width: navWidth }}
+      onWheel={isMobile ? undefined : handleWheel}
+      animate={{ width: navVisible ? navWidth : 0, x: isMobile && !mobileOpen ? -navWidth : 0 }}
       transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
       style={{
         position: 'fixed', left: 0, top: 0, height: '100%',
         display: 'flex', flexDirection: 'column',
-        zIndex: 100,
+        zIndex: 99,
         borderRight: '1px solid var(--border)',
         background: 'var(--surface-1)',
         overflow: 'hidden',
@@ -211,7 +260,7 @@ export function LeftNav({ current, onNavigate }: LeftNavProps) {
               return (
                 <div key={i} style={{ position: 'relative', padding: collapsed ? '0 6px' : '0 8px', marginBottom: 1 }}>
                   <button
-                    onClick={() => onNavigate(i)}
+                    onClick={() => isMobile ? handleMobileNavigate(i) : onNavigate(i)}
                     onMouseEnter={() => setHovered(i)}
                     onMouseLeave={() => setHovered(null)}
                     style={{
@@ -423,6 +472,7 @@ export function LeftNav({ current, onNavigate }: LeftNavProps) {
         )}
       </div>
     </motion.div>
+    </>
   )
 }
 

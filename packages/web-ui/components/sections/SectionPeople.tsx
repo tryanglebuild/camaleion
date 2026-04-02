@@ -349,6 +349,12 @@ export function SectionPeople({ direction, onNavigateTo }: SectionProps) {
               Array.from({ length: 8 }).map((_, i) => (
                 <div key={i} className="skeleton" style={{ height: 56, margin: '4px 8px', borderRadius: 4 }} />
               ))
+            ) : people.length === 0 ? (
+              <div className="empty-state" style={{ padding: '32px 16px' }}>
+                <div className="empty-state-icon">👥</div>
+                <p>No contacts yet</p>
+                <p className="empty-state-hint">Add people to track relationships</p>
+              </div>
             ) : (
               <motion.div variants={listVariants} initial="hidden" animate="visible">
                 {people.map(p => {

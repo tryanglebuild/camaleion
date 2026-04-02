@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion'
 import type { Entry } from '@context-engine/shared'
 import { Badge } from '@/components/ui/Badge'
-import { X, FolderOpen, Tag, Calendar, User } from 'lucide-react'
+import { X, FolderOpen, Tag, Calendar, User, BookOpen } from 'lucide-react'
 import { growContainerVariants, itemVariants, listVariants, rowVariants } from '@/lib/animation-variants'
 
 interface EntryDetailProps {
@@ -31,14 +31,25 @@ export function EntryDetail({ entry, onClose }: EntryDetailProps) {
           <Badge type={entry.type} />
           {entry.status && <Badge status={entry.status} />}
         </div>
-        {onClose && (
-          <button
-            onClick={onClose}
-            className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors shrink-0"
+        <div className="flex items-center gap-2 shrink-0">
+          <a
+            href={`/dashboard/notes/${entry.id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 text-[10px] text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors border border-[var(--border)] hover:border-[var(--accent)] rounded px-2 py-1"
+            style={{ fontFamily: 'var(--font-inter)', textDecoration: 'none' }}
           >
-            <X size={15} />
-          </button>
-        )}
+            <BookOpen size={10} /> Full page
+          </a>
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors"
+            >
+              <X size={15} />
+            </button>
+          )}
+        </div>
       </motion.div>
 
       {/* Body */}

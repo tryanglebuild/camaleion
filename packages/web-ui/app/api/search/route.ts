@@ -3,7 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase-server'
 
 const EMBED_URL = `${process.env.SUPABASE_URL}/functions/v1/embed`
 
-async function runSearch(query: string, limit: number) {
+async function runSearch(query: string, limit: number, filterType?: string | null) {
   const embedRes = await fetch(EMBED_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.SUPABASE_SERVICE_KEY}` },
@@ -12,28 +12,31 @@ async function runSearch(query: string, limit: number) {
   const { embedding } = await embedRes.json()
 
   if (!embedding) {
-    // fallback to text search
-    const { data } = await supabaseAdmin
+    let q = supabaseAdmin
       .from('entries')
       .select('*, project:projects(id,name), person:people(id,name)')
       .ilike('title', `%${query}%`)
       .limit(limit)
+    if (filterType) q = q.eq('type', filterType)
+    const { data } = await q
     return (data ?? []).map((e: Record<string, unknown>) => ({ ...e, similarity: undefined }))
   }
 
   const { data: matches, error } = await supabaseAdmin.rpc('match_entries', {
     query_embedding: JSON.stringify(embedding),
     match_count: limit,
-    filter_type: null,
+    filter_type: filterType ?? null,
     filter_project: null,
   })
 
   if (error || !matches?.length) {
-    const { data } = await supabaseAdmin
+    let q = supabaseAdmin
       .from('entries')
       .select('*, project:projects(id,name), person:people(id,name)')
       .ilike('title', `%${query}%`)
       .limit(limit)
+    if (filterType) q = q.eq('type', filterType)
+    const { data } = await q
     return (data ?? []).map((e: Record<string, unknown>) => ({ ...e, similarity: undefined }))
   }
 
@@ -53,9 +56,10 @@ async function runSearch(query: string, limit: number) {
 export async function GET(req: NextRequest) {
   try {
     const q = req.nextUrl.searchParams.get('q')
-    const limit = Number(req.nextUrl.searchParams.get('limit') ?? 12)
+    const limit = Number(req.nextUrl.searchParams.get('limit') ?? 20)
+    const type = req.nextUrl.searchParams.get('type')
     if (!q) return NextResponse.json({ error: 'q required' }, { status: 400 })
-    const results = await runSearch(q, limit)
+    const results = await runSearch(q, limit, type)
     return NextResponse.json(results)
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Unknown' }, { status: 500 })

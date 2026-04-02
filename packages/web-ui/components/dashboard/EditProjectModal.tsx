@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { EditModal, Field, ModalInput, ModalSelect } from '@/components/ui/EditModal'
+import { useToast } from '@/components/ui/Toaster'
 import type { Project, ProjectStatus } from '@context-engine/shared'
 
 const STATUSES: { value: ProjectStatus; label: string }[] = [
@@ -16,6 +17,7 @@ interface Props {
 }
 
 export function EditProjectModal({ project, onClose, onSaved }: Props) {
+  const { toast } = useToast()
   const [name, setName]               = useState('')
   const [description, setDescription] = useState('')
   const [status, setStatus]           = useState<ProjectStatus>('active')
@@ -47,6 +49,7 @@ export function EditProjectModal({ project, onClose, onSaved }: Props) {
       }),
     })
     setLoading(false)
+    toast('Project saved')
     onSaved()
     onClose()
   }
@@ -54,6 +57,7 @@ export function EditProjectModal({ project, onClose, onSaved }: Props) {
   async function handleDelete() {
     if (!project) return
     await fetch(`/api/projects/${project.id}`, { method: 'DELETE' })
+    toast('Project deleted', 'warning')
     onSaved()
     onClose()
   }

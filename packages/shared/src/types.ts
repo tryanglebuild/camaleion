@@ -30,6 +30,7 @@ export interface Entry {
   title: string
   content: string | null
   status: EntryStatus | null
+  pinned: boolean
   project_id: string | null
   person_id: string | null
   tags: string[] | null

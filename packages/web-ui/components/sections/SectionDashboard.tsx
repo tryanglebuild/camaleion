@@ -3,7 +3,7 @@ import { motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
 import type { SectionProps } from './types'
 import { supabase } from '@/lib/supabase'
-import { Database, FolderOpen, Users, CheckSquare, ArrowRight } from 'lucide-react'
+import { Database, FolderOpen, Users, CheckSquare, ArrowRight, Terminal, Search, Plus } from 'lucide-react'
 import { contentItemVariants, listContainerVariants, rowItemVariants } from './sectionVariants'
 import { SectionWrapper, SectionHeader } from './SectionLayout'
 import { itemVariants, growContainerVariants } from '@/lib/animation-variants'
@@ -78,7 +78,8 @@ function SystemStatus() {
 }
 
 export function SectionDashboard({ direction, onNavigateTo }: SectionProps) {
-  const [stats, setStats] = useState({ entries: 0, projects: 0, people: 0, tasks: 0, done: 0, pending: 0, blocked: 0, in_progress: 0 })
+  const [stats, setStats] = useState({ entries: 0, projects: 0, people: 0, tasks: 0, done: 0, pending: 0, blocked: 0, in_progress: 0, thisWeek: 0, lastWeek: 0 })
+  const [lastWrite, setLastWrite] = useState<{ title: string; time: string } | null>(null)
   const [logs, setLogs] = useState<{ id: string; time: string; type: string; title: string; status: string }[]>([])
   const [pendingTasks, setPendingTasks] = useState<{ id: string; title: string; status: string; project?: string }[]>([])
   const [typeDist, setTypeDist] = useState<{ type: string; count: number }[]>([])
@@ -87,7 +88,11 @@ export function SectionDashboard({ direction, onNavigateTo }: SectionProps) {
 
   useEffect(() => {
     async function load() {
-      const [e, p, pe, done, pend, blocked, inprog] = await Promise.all([
+      const now = new Date()
+      const weekStart = new Date(now); weekStart.setDate(now.getDate() - 7); weekStart.setHours(0,0,0,0)
+      const lastWeekStart = new Date(weekStart); lastWeekStart.setDate(weekStart.getDate() - 7)
+
+      const [e, p, pe, done, pend, blocked, inprog, tasks, thisWeekR, lastWeekR] = await Promise.all([
         supabase.from('entries').select('id', { count: 'exact', head: true }),
         supabase.from('projects').select('id', { count: 'exact', head: true }),
         supabase.from('people').select('id', { count: 'exact', head: true }),
@@ -95,12 +100,15 @@ export function SectionDashboard({ direction, onNavigateTo }: SectionProps) {
         supabase.from('entries').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
         supabase.from('entries').select('id', { count: 'exact', head: true }).eq('status', 'blocked'),
         supabase.from('entries').select('id', { count: 'exact', head: true }).eq('status', 'in_progress'),
+        supabase.from('entries').select('id', { count: 'exact', head: true }).eq('type', 'task'),
+        supabase.from('entries').select('id', { count: 'exact', head: true }).gte('created_at', weekStart.toISOString()),
+        supabase.from('entries').select('id', { count: 'exact', head: true }).gte('created_at', lastWeekStart.toISOString()).lt('created_at', weekStart.toISOString()),
       ])
-      const tasks = await supabase.from('entries').select('id', { count: 'exact', head: true }).eq('type', 'task')
       setStats({
         entries: e.count ?? 0, projects: p.count ?? 0, people: pe.count ?? 0,
         tasks: tasks.count ?? 0, done: done.count ?? 0, pending: pend.count ?? 0,
         blocked: blocked.count ?? 0, in_progress: inprog.count ?? 0,
+        thisWeek: thisWeekR.count ?? 0, lastWeek: lastWeekR.count ?? 0,
       })
 
       const { data: recentData } = await supabase
@@ -110,6 +118,15 @@ export function SectionDashboard({ direction, onNavigateTo }: SectionProps) {
         id: d.id, time: new Date(d.created_at).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' }),
         type: d.type, title: d.title.slice(0, 55), status: d.status ?? '',
       })))
+      if (recentData?.[0]) {
+        const d = recentData[0]
+        const diff = Date.now() - new Date(d.created_at).getTime()
+        const mins = Math.floor(diff / 60000)
+        const hrs  = Math.floor(mins / 60)
+        const days = Math.floor(hrs / 24)
+        const ago  = days > 0 ? `${days}d ago` : hrs > 0 ? `${hrs}h ago` : mins > 0 ? `${mins}m ago` : 'just now'
+        setLastWrite({ title: d.title.slice(0, 40), time: ago })
+      }
 
       const { data: taskData } = await supabase
         .from('entries').select('id, title, status, project:projects(name)')
@@ -162,11 +179,14 @@ export function SectionDashboard({ direction, onNavigateTo }: SectionProps) {
   const peVal = useCountUp(stats.people,   ready, 0.8)
   const tVal  = useCountUp(stats.tasks,    ready, 0.9)
 
+  const weekDelta = stats.thisWeek - stats.lastWeek
+  const weekTrend = weekDelta > 0 ? `+${weekDelta} vs last week` : weekDelta < 0 ? `${weekDelta} vs last week` : 'same as last week'
+
   const statItems = [
-    { label: 'Entries',  value: eVal,  sub: `${stats.pending} pending`,  color: '#3B82F6', icon: <Database size={11} />,   sectionIndex: SECTION_INDEX.ENTRIES },
-    { label: 'Projects', value: pVal,  sub: 'active pipelines',          color: '#06B6D4', icon: <FolderOpen size={11} />, sectionIndex: SECTION_INDEX.PROJECTS },
-    { label: 'People',   value: peVal, sub: 'in network',                color: '#F43F5E', icon: <Users size={11} />,      sectionIndex: SECTION_INDEX.PEOPLE },
-    { label: 'Tasks',    value: tVal,  sub: `${stats.done} done`,        color: '#EAB308', icon: <CheckSquare size={11} />,sectionIndex: SECTION_INDEX.TASKS },
+    { label: 'Entries',  value: eVal,  sub: `${stats.thisWeek} this week · ${weekTrend}`, color: '#3B82F6', icon: <Database size={11} />,   sectionIndex: SECTION_INDEX.ENTRIES },
+    { label: 'Projects', value: pVal,  sub: 'active pipelines',                           color: '#06B6D4', icon: <FolderOpen size={11} />, sectionIndex: SECTION_INDEX.PROJECTS },
+    { label: 'People',   value: peVal, sub: 'in network',                                 color: '#F43F5E', icon: <Users size={11} />,      sectionIndex: SECTION_INDEX.PEOPLE },
+    { label: 'Tasks',    value: tVal,  sub: `${stats.done} done · ${stats.pending} pending`, color: '#EAB308', icon: <CheckSquare size={11} />,sectionIndex: SECTION_INDEX.TASKS },
   ]
 
   const totalStatus = (stats.done + stats.pending + stats.in_progress + stats.blocked) || 1
@@ -177,6 +197,88 @@ export function SectionDashboard({ direction, onNavigateTo }: SectionProps) {
     { n: stats.blocked,     c: '#EF4444', l: 'blocked' },
   ]
   const maxTypeCount = typeDist[0]?.count || 1
+
+  // ── Getting started overlay (no data yet) ─────────────────────────
+  if (ready && stats.entries === 0) {
+    const steps = [
+      {
+        icon: Terminal, color: '#8B5CF6',
+        title: 'Connect MCP',
+        desc: 'Add context-engine to your claude_desktop_config.json or .claude/settings.json',
+        code: '"context-engine": { "command": "node", "args": ["packages/mcp-server/dist/index.js"] }',
+      },
+      {
+        icon: Plus, color: '#3B82F6',
+        title: 'Create your first entry',
+        desc: 'Press N anywhere in the app, or ask Claude to add a note via MCP',
+        code: 'add_entry({ type: "note", title: "My first memory" })',
+      },
+      {
+        icon: Search, color: '#10B981',
+        title: 'Search your memory',
+        desc: 'Use semantic search to retrieve anything you\'ve stored',
+        code: 'query_context({ question: "what did I decide about X?" })',
+      },
+    ]
+    return (
+      <SectionWrapper direction={direction}>
+        <SectionHeader title="Overview" subtitle="Brain context at a glance" rightSlot={<SystemStatus />} />
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 24px' }}>
+          <div style={{ maxWidth: 640, width: '100%' }}>
+            <h2 style={{ fontFamily: 'var(--font-space-grotesk)', fontSize: 24, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6, letterSpacing: '-0.02em' }}>
+              Welcome to Context Engine
+            </h2>
+            <p style={{ fontFamily: 'var(--font-inter)', fontSize: 13, color: 'var(--text-muted)', marginBottom: 32, lineHeight: 1.6 }}>
+              Persistent memory and semantic search for AI tools. Follow these steps to get started.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {steps.map((step, i) => {
+                const Icon = step.icon
+                return (
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.1, duration: 0.3 }}
+                    style={{
+                      display: 'flex', gap: 16, padding: '16px 20px',
+                      background: 'var(--surface-1)', border: '1px solid var(--border)',
+                      borderLeft: `3px solid ${step.color}`,
+                      borderRadius: 8,
+                    }}
+                  >
+                    <div style={{ width: 32, height: 32, borderRadius: 8, background: `${step.color}18`, border: `1px solid ${step.color}30`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <Icon size={14} style={{ color: step.color }} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                        <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 10, color: step.color, background: `${step.color}18`,
+                          border: `1px solid ${step.color}30`, borderRadius: 3, padding: '1px 6px', letterSpacing: '0.06em' }}>
+                          {i + 1}
+                        </span>
+                        <span style={{ fontFamily: 'var(--font-inter)', fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
+                          {step.title}
+                        </span>
+                      </div>
+                      <p style={{ fontFamily: 'var(--font-inter)', fontSize: 12, color: 'var(--text-secondary)', margin: '0 0 8px', lineHeight: 1.5 }}>
+                        {step.desc}
+                      </p>
+                      <code style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 11, color: 'var(--text-muted)',
+                        background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 4,
+                        padding: '3px 8px', display: 'block', wordBreak: 'break-all' }}>
+                        {step.code}
+                      </code>
+                    </div>
+                  </motion.div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      </SectionWrapper>
+    )
+  }
 
   return (
     <SectionWrapper direction={direction}>
@@ -227,13 +329,21 @@ export function SectionDashboard({ direction, onNavigateTo }: SectionProps) {
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, borderRight: '1px solid var(--border)' }}>
           <motion.div
             variants={contentItemVariants}
-            style={{ padding: '9px 22px 7px', flexShrink: 0, borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+            style={{ padding: '9px 22px 7px', flexShrink: 0, borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}
           >
-            <span style={{ fontFamily: 'var(--font-inter)', fontSize: 10, color: 'var(--text-secondary)', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+            <span style={{ fontFamily: 'var(--font-inter)', fontSize: 10, color: 'var(--text-secondary)', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', flexShrink: 0 }}>
               Recent activity
             </span>
+            {lastWrite && (
+              <span style={{
+                fontFamily: 'var(--font-inter)', fontSize: 10, color: 'var(--text-muted)',
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, textAlign: 'center',
+              }}>
+                Last write: <span style={{ color: 'var(--text-secondary)' }}>{lastWrite.title}</span> · {lastWrite.time}
+              </span>
+            )}
             <div style={{
-              display: 'flex', alignItems: 'center', gap: 5,
+              display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0,
               padding: '2px 7px 2px 5px', borderRadius: 20,
               background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)',
             }}>

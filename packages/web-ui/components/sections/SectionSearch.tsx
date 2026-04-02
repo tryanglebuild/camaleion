@@ -1,9 +1,9 @@
 'use client'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useState, useEffect, useRef } from 'react'
-import { Search as SearchIcon, Clock, X, Zap, ExternalLink } from 'lucide-react'
+import { Search as SearchIcon, Clock, X, Zap, ExternalLink, SlidersHorizontal } from 'lucide-react'
 import type { SectionProps } from './types'
-import type { Entry } from '@context-engine/shared'
+import type { Entry, EntryType, EntryStatus } from '@context-engine/shared'
 import { listVariants, rowVariants } from '@/lib/animation-variants'
 import { SectionWrapper, SectionHeader } from './SectionLayout'
 import { SECTION_INDEX } from './types'
@@ -17,6 +17,26 @@ const TYPE_META: Record<string, { color: string; label: string }> = {
   meet:     { color: '#10B981', label: 'MEET' },
   idea:     { color: '#EC4899', label: 'IDEA' },
   log:      { color: '#71717A', label: 'LOG' },
+  analysis: { color: '#06B6D4', label: 'ANALYSIS' },
+  plan:     { color: '#6366F1', label: 'PLAN' },
+  post:     { color: '#F97316', label: 'POST' },
+}
+
+const ALL_TYPES = Object.keys(TYPE_META) as EntryType[]
+const ALL_STATUSES: EntryStatus[] = ['pending', 'done', 'blocked', 'in_progress']
+type DateRange = '' | 'week' | 'month'
+
+function highlight(text: string, query: string): React.ReactNode {
+  if (!query.trim()) return text
+  const terms = query.trim().split(/\s+/).filter(t => t.length > 1)
+  if (!terms.length) return text
+  const regex = new RegExp(`(${terms.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'gi')
+  const parts = text.split(regex)
+  return parts.map((part, i) =>
+    regex.test(part)
+      ? <mark key={i} style={{ background: 'rgba(var(--accent-rgb, 99,102,241),0.15)', color: 'var(--accent)', borderRadius: 2, padding: '0 1px' }}>{part}</mark>
+      : part
+  )
 }
 
 const HISTORY_KEY = 'ce_query_history'
@@ -38,22 +58,41 @@ function scoreLabel(s: number) {
 const RAG_URL = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/rag-answer`
 
 export function SectionSearch({ direction, onNavigateTo }: SectionProps) {
-  const [draft, setDraft]             = useState('')
-  const [results, setResults]         = useState<SearchEntry[]>([])
-  const [loading, setLoading]         = useState(false)
-  const [searched, setSearched]       = useState(false)
-  const [threshold, setThreshold]     = useState(0.0)
-  const [history, setHistory]         = useState<string[]>([])
-  const [showHistory, setShowHistory] = useState(false)
-  const [selected, setSelected]       = useState<SearchEntry | null>(null)
-  const [answer, setAnswer]           = useState('')
+  const [draft, setDraft]               = useState('')
+  const [results, setResults]           = useState<SearchEntry[]>([])
+  const [loading, setLoading]           = useState(false)
+  const [searched, setSearched]         = useState(false)
+  const [threshold, setThreshold]       = useState(0.0)
+  const [filterType, setFilterType]     = useState<EntryType | ''>('')
+  const [filterStatus, setFilterStatus] = useState<EntryStatus | ''>('')
+  const [filterDate, setFilterDate]     = useState<DateRange>('')
+  const [history, setHistory]           = useState<string[]>([])
+  const [showHistory, setShowHistory]   = useState(false)
+  const [selected, setSelected]         = useState<SearchEntry | null>(null)
+  const [answer, setAnswer]             = useState('')
   const [answerLoading, setAnswerLoading] = useState(false)
   const inputRef  = useRef<HTMLInputElement>(null)
   const abortRef  = useRef<AbortController | null>(null)
+  const lastQuery = useRef('')
 
   useEffect(() => { setHistory(getHistory()) }, [])
 
-  const filtered = results.filter(r => (r.similarity ?? 1) >= threshold)
+  const filtered = results.filter(r => {
+    if ((r.similarity ?? 1) < threshold) return false
+    if (filterStatus && r.status !== filterStatus) return false
+    if (filterDate) {
+      const d = new Date(r.created_at)
+      const now = new Date()
+      if (filterDate === 'week') {
+        const weekAgo = new Date(now); weekAgo.setDate(weekAgo.getDate() - 7)
+        if (d < weekAgo) return false
+      } else if (filterDate === 'month') {
+        const monthAgo = new Date(now); monthAgo.setDate(monthAgo.getDate() - 30)
+        if (d < monthAgo) return false
+      }
+    }
+    return true
+  })
 
   async function streamAnswer(q: string, data: SearchEntry[]) {
     if (!data.length) return
@@ -98,9 +137,11 @@ export function SectionSearch({ direction, onNavigateTo }: SectionProps) {
     setAnswerLoading(false)
   }
 
-  async function run(q?: string) {
+  async function run(q?: string, type?: EntryType | '') {
     const q_ = (q ?? draft).trim()
     if (!q_) return
+    const type_ = type !== undefined ? type : filterType
+    lastQuery.current = q_
     setDraft(q_)
     setLoading(true)
     setSearched(false)
@@ -108,7 +149,9 @@ export function SectionSearch({ direction, onNavigateTo }: SectionProps) {
     setSelected(null)
     setAnswer('')
     setShowHistory(false)
-    const res = await fetch(`/api/search?q=${encodeURIComponent(q_)}&limit=20`)
+    const params = new URLSearchParams({ q: q_, limit: '20' })
+    if (type_) params.set('type', type_)
+    const res = await fetch(`/api/search?${params}`)
     if (res.ok) {
       const data = await res.json() as SearchEntry[]
       setResults(data)
@@ -119,6 +162,12 @@ export function SectionSearch({ direction, onNavigateTo }: SectionProps) {
     setLoading(false)
     setSearched(true)
   }
+
+  // Rerun when type filter changes (if we already have a query)
+  useEffect(() => {
+    if (searched && lastQuery.current) run(lastQuery.current, filterType)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterType])
 
   // ── Shared input (rendered in both states, just moves) ──────────────
   function SearchInput({ compact }: { compact: boolean }) {
@@ -316,12 +365,12 @@ export function SectionSearch({ direction, onNavigateTo }: SectionProps) {
               {/* Threshold */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                 <span style={{ fontFamily: 'var(--font-inter)', fontSize: 11, color: 'var(--text-muted)' }}>
-                  threshold:
+                  min:
                 </span>
                 <input
                   type="range" min={0} max={0.95} step={0.05} value={threshold}
                   onChange={e => setThreshold(parseFloat(e.target.value))}
-                  style={{ width: 80, accentColor: 'var(--accent)', cursor: 'pointer' }}
+                  style={{ width: 70, accentColor: 'var(--accent)', cursor: 'pointer' }}
                 />
                 <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 11, color: 'var(--text-muted)', minWidth: 28 }}>
                   {threshold.toFixed(2)}
@@ -334,6 +383,74 @@ export function SectionSearch({ direction, onNavigateTo }: SectionProps) {
                   <span style={{ fontFamily: 'var(--font-inter)', fontSize: 11, color: 'var(--text-secondary)' }}>Searching…</span>
                 </div>
               )}
+            </div>
+
+            {/* Filter pills: type + status + date */}
+            <div style={{
+              padding: '8px 20px', borderBottom: '1px solid var(--border)',
+              display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0,
+              background: 'var(--surface-1)',
+            }}>
+              {/* Row 1: type */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                <SlidersHorizontal size={11} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                {(['', ...ALL_TYPES] as (EntryType | '')[]).map(t => {
+                  const tm = t ? TYPE_META[t] : null
+                  const active = filterType === t
+                  return (
+                    <button key={t || 'all'} onClick={() => setFilterType(t)} style={{
+                      fontFamily: 'var(--font-jetbrains-mono)', fontSize: 10,
+                      padding: '2px 9px', borderRadius: 20,
+                      border: active ? `1px solid ${tm?.color ?? 'var(--accent)'}` : '1px solid var(--border)',
+                      background: active ? `${tm?.color ?? 'var(--accent)'}18` : 'transparent',
+                      color: active ? (tm?.color ?? 'var(--accent)') : 'var(--text-muted)',
+                      cursor: 'pointer', transition: 'all 0.12s', letterSpacing: '0.06em',
+                    }}>
+                      {t === '' ? 'ALL' : tm?.label ?? t.toUpperCase()}
+                    </button>
+                  )
+                })}
+              </div>
+              {/* Row 2: status + date range */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: 4 }}>
+                  {(['', ...ALL_STATUSES] as (EntryStatus | '')[]).map(s => {
+                    const active = filterStatus === s
+                    const colors: Record<string, string> = { pending: '#EAB308', done: '#22C55E', blocked: '#EF4444', in_progress: '#3B82F6' }
+                    const c = s ? colors[s] : 'var(--accent)'
+                    return (
+                      <button key={s || 'any'} onClick={() => setFilterStatus(s)} style={{
+                        fontFamily: 'var(--font-jetbrains-mono)', fontSize: 9,
+                        padding: '2px 8px', borderRadius: 20,
+                        border: active ? `1px solid ${c}` : '1px solid var(--border)',
+                        background: active ? `${c}18` : 'transparent',
+                        color: active ? c : 'var(--text-muted)',
+                        cursor: 'pointer', transition: 'all 0.12s', letterSpacing: '0.06em',
+                      }}>
+                        {s === '' ? 'ANY STATUS' : s.replace('_', ' ').toUpperCase()}
+                      </button>
+                    )
+                  })}
+                </div>
+                <div style={{ width: 1, height: 14, background: 'var(--border)', flexShrink: 0 }} />
+                <div style={{ display: 'flex', gap: 4 }}>
+                  {([['', 'ALL TIME'], ['week', 'THIS WEEK'], ['month', 'LAST 30D']] as [DateRange, string][]).map(([v, label]) => {
+                    const active = filterDate === v
+                    return (
+                      <button key={v || 'all'} onClick={() => setFilterDate(v)} style={{
+                        fontFamily: 'var(--font-jetbrains-mono)', fontSize: 9,
+                        padding: '2px 8px', borderRadius: 20,
+                        border: active ? '1px solid var(--accent)' : '1px solid var(--border)',
+                        background: active ? 'var(--accent-glow)' : 'transparent',
+                        color: active ? 'var(--accent)' : 'var(--text-muted)',
+                        cursor: 'pointer', transition: 'all 0.12s', letterSpacing: '0.06em',
+                      }}>
+                        {label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
             </div>
 
             {/* Body */}
@@ -443,7 +560,7 @@ export function SectionSearch({ direction, onNavigateTo }: SectionProps) {
                               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                               paddingLeft: 10,
                             }}>
-                              {r.title}
+                              {highlight(r.title, lastQuery.current)}
                             </span>
 
                             {/* ExternalLink — visible on selected or row hover */}

@@ -1,5 +1,5 @@
 'use client'
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import { LeftNav } from '@/components/dashboard/LeftNav'
 import { SectionDashboard } from '@/components/sections/SectionDashboard'
@@ -13,7 +13,11 @@ import { SectionRules }    from '@/components/sections/SectionRules'
 import { SectionAnalyze }  from '@/components/sections/SectionAnalyze'
 import { SectionPlan }     from '@/components/sections/SectionPlan'
 import { SectionGenerate } from '@/components/sections/SectionGenerate'
-import { SectionGraph }  from '@/components/sections/SectionGraph'
+import { SectionGraph }    from '@/components/sections/SectionGraph'
+import { SectionSettings }  from '@/components/sections/SectionSettings'
+import { SectionTimeline }  from '@/components/sections/SectionTimeline'
+import { AddEntryModal } from '@/components/dashboard/AddEntryModal'
+import { CommandPalette } from '@/components/dashboard/CommandPalette'
 
 const SECTIONS = [
   SectionDashboard,
@@ -28,13 +32,18 @@ const SECTIONS = [
   SectionPlan,
   SectionGenerate,
   SectionGraph,
+  SectionSettings,
+  SectionTimeline,
 ]
 
 export default function DashboardPage() {
   const [current, setCurrent]           = useState(0)
   const [direction, setDirection]       = useState<'up' | 'down'>('down')
   const [initialItemId, setInitialItemId] = useState<string | undefined>(undefined)
+  const [paletteOpen, setPaletteOpen]   = useState(false)
+  const [newEntryOpen, setNewEntryOpen] = useState(false)
   const throttleRef = useRef(false)
+  const refreshRef  = useRef(0) // bump to signal reload to current section
 
   const navigate = useCallback((next: number) => {
     if (throttleRef.current) return
@@ -55,6 +64,38 @@ export default function DashboardPage() {
     setTimeout(() => { throttleRef.current = false }, 700)
   }, [current])
 
+  // Global keyboard shortcuts
+  useEffect(() => {
+    function handler(e: KeyboardEvent) {
+      const tag = (e.target as HTMLElement).tagName
+      const inInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT'
+        || (e.target as HTMLElement).isContentEditable
+
+      // ⌘K / Ctrl+K — command palette
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setPaletteOpen(v => !v)
+        return
+      }
+
+      if (inInput) return
+
+      // N — new entry
+      if (e.key === 'n' || e.key === 'N') {
+        e.preventDefault()
+        setNewEntryOpen(true)
+        return
+      }
+
+      // Esc — close palette
+      if (e.key === 'Escape') {
+        setPaletteOpen(false)
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
+
   const Section = SECTIONS[current]
 
   return (
@@ -68,6 +109,20 @@ export default function DashboardPage() {
           onNavigateTo={navigateTo}
         />
       </AnimatePresence>
+
+      {/* Global new entry modal (triggered by N key) */}
+      <AddEntryModal
+        open={newEntryOpen}
+        onClose={() => setNewEntryOpen(false)}
+        onSuccess={() => { refreshRef.current++ }}
+      />
+
+      {/* Command palette (⌘K) */}
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        onNavigate={navigate}
+      />
     </div>
   )
 }

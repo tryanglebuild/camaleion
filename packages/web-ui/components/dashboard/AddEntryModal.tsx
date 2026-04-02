@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { X, Plus } from 'lucide-react'
 import type { EntryType, EntryStatus } from '@context-engine/shared'
 import { modalVariants, backdropVariants, itemVariants } from '@/lib/animation-variants'
+import { useToast } from '@/components/ui/Toaster'
+import { useIsMobile } from '@/lib/use-window-width'
 
 const ENTRY_TYPES: EntryType[] = ['task', 'note', 'decision', 'meet', 'idea', 'log']
 const STATUS_OPTIONS: EntryStatus[] = ['pending', 'done', 'blocked']
@@ -21,6 +23,8 @@ interface AddEntryModalProps {
 }
 
 export function AddEntryModal({ open, onClose, onSuccess }: AddEntryModalProps) {
+  const { toast } = useToast()
+  const isMobile = useIsMobile()
   const [type, setType] = useState<EntryType>('note')
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
@@ -60,6 +64,7 @@ export function AddEntryModal({ open, onClose, onSuccess }: AddEntryModalProps) 
         }),
       })
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed') }
+      toast('Entry saved')
       onSuccess(); onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
@@ -88,13 +93,23 @@ export function AddEntryModal({ open, onClose, onSuccess }: AddEntryModalProps) 
           {/* Modal */}
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <motion.div
-              variants={modalVariants}
-              initial="hidden"
-              animate="visible"
-              exit="exit"
-              className="card w-full max-w-lg overflow-hidden"
+              variants={isMobile ? undefined : modalVariants}
+              initial={isMobile ? { opacity: 0, y: 40 } : 'hidden'}
+              animate={isMobile ? { opacity: 1, y: 0 } : 'visible'}
+              exit={isMobile ? { opacity: 0, y: 40 } : 'exit'}
+              transition={isMobile ? { duration: 0.22, ease: [0.22, 1, 0.36, 1] } : undefined}
               onClick={e => e.stopPropagation()}
-              style={{ borderTop: `3px solid ${accentColor}` }}
+              style={isMobile ? {
+                position: 'fixed', inset: 0,
+                background: 'var(--surface-1)',
+                borderTop: `3px solid ${accentColor}`,
+                borderRadius: 0,
+                display: 'flex', flexDirection: 'column',
+                overflowY: 'auto',
+              } : {
+                borderTop: `3px solid ${accentColor}`,
+              }}
+              className={isMobile ? '' : 'card w-full max-w-lg overflow-hidden'}
             >
               {/* Header */}
               <motion.div variants={itemVariants} className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">

@@ -1,7 +1,8 @@
 'use client'
 import { motion } from 'framer-motion'
+import { useState } from 'react'
 import type { Entry } from '@context-engine/shared'
-import { FolderOpen } from 'lucide-react'
+import { FolderOpen, Star, Copy } from 'lucide-react'
 import { cardVariants } from '@/lib/animation-variants'
 
 const TYPE_META: Record<string, { label: string; color: string }> = {
@@ -28,9 +29,12 @@ interface EntryCardProps {
   entry: Entry
   index?: number
   onClick?: () => void
+  onPin?: (e: React.MouseEvent) => void
+  onDuplicate?: (e: React.MouseEvent) => void
 }
 
-export function EntryCard({ entry, index = 0, onClick }: EntryCardProps) {
+export function EntryCard({ entry, index = 0, onClick, onPin, onDuplicate }: EntryCardProps) {
+  const [hovered, setHovered] = useState(false)
   const date = new Date(entry.created_at).toLocaleDateString('pt-PT', { day: '2-digit', month: 'short' })
   const project = entry.project as { name: string } | null | undefined
   const meta  = TYPE_META[entry.type]   ?? { label: entry.type.toUpperCase(), color: '#71717A' }
@@ -43,19 +47,66 @@ export function EntryCard({ entry, index = 0, onClick }: EntryCardProps) {
       variants={cardVariants}
       initial="hidden"
       animate="visible"
-      whileHover={{ y: -2, borderColor: 'var(--border-active)', boxShadow: `0 6px 24px rgba(0,0,0,0.08)` }}
+      onHoverStart={() => setHovered(true)}
+      onHoverEnd={() => setHovered(false)}
+      whileHover={{ y: -2, borderColor: entry.pinned ? meta.color : 'var(--border-active)', boxShadow: `0 6px 24px rgba(0,0,0,0.08)` }}
       style={{
         cursor: onClick ? 'pointer' : 'default',
         background: 'var(--surface-1)',
-        border: '1px solid var(--border)',
+        border: `1px solid ${entry.pinned ? `${meta.color}60` : 'var(--border)'}`,
         borderRadius: 8,
         overflow: 'hidden',
         display: 'flex', flexDirection: 'column',
         transition: 'border-color 0.15s, box-shadow 0.15s',
+        position: 'relative',
       }}
     >
       {/* Top type strip */}
       <div style={{ height: 2, background: meta.color, flexShrink: 0 }} />
+
+      {/* Hover action buttons — bottom-right to avoid overlapping header row */}
+      {(onPin || onDuplicate) && (
+        <div style={{
+          position: 'absolute', bottom: 8, right: 8,
+          display: 'flex', gap: 3,
+          opacity: hovered || entry.pinned ? 1 : 0,
+          transition: 'opacity 0.15s',
+          zIndex: 2,
+        }}>
+          {onDuplicate && (
+            <button
+              onClick={onDuplicate}
+              title="Duplicate"
+              style={{
+                background: 'var(--surface-2)', border: '1px solid var(--border)',
+                borderRadius: 4, padding: '3px 5px', cursor: 'pointer',
+                color: 'var(--text-muted)', display: 'flex', alignItems: 'center',
+                transition: 'color 0.1s',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-primary)')}
+              onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
+            >
+              <Copy size={9} />
+            </button>
+          )}
+          {onPin && (
+            <button
+              onClick={onPin}
+              title={entry.pinned ? 'Unpin' : 'Pin'}
+              style={{
+                background: entry.pinned ? `${meta.color}20` : 'var(--surface-2)',
+                border: `1px solid ${entry.pinned ? `${meta.color}60` : 'var(--border)'}`,
+                borderRadius: 4, padding: '3px 5px', cursor: 'pointer',
+                color: entry.pinned ? meta.color : 'var(--text-muted)',
+                display: 'flex', alignItems: 'center',
+                transition: 'all 0.1s',
+              }}
+            >
+              <Star size={9} fill={entry.pinned ? meta.color : 'none'} />
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Card content */}
       <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>

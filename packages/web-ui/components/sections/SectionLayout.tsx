@@ -2,6 +2,7 @@
 import { motion } from 'framer-motion'
 import { ReactNode } from 'react'
 import { useTypewriter } from '@/lib/use-typewriter'
+import { useIsMobile } from '@/lib/use-window-width'
 import type { SectionProps } from './types'
 import { sectionRevealVariants, panelRevealVariants, contentItemVariants } from './sectionVariants'
 
@@ -43,6 +44,7 @@ interface SectionHeaderProps {
   accent?: string       // optional top accent bar color
 }
 export function SectionHeader({ title, subtitle, rightSlot, titleDelay = 0.55, titleSpeed = 42, accent }: SectionHeaderProps) {
+  const isMobile = useIsMobile()
   const titleDuration = (title.length * titleSpeed) / 1000
   const { displayed: titleText, done: titleDone } = useTypewriter(title, { delay: titleDelay, speed: titleSpeed })
   const { displayed: subText } = useTypewriter(subtitle ?? '', {
@@ -60,7 +62,7 @@ export function SectionHeader({ title, subtitle, rightSlot, titleDelay = 0.55, t
       }}
     >
       {accent && <div style={{ height: 3, background: accent, flexShrink: 0 }} />}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 28px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: isMobile ? '56px 16px 14px' : '14px 28px' }}>
       <div>
         <h1 className="section-title-lg">
           {titleText}

@@ -1,6 +1,8 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { EditModal, Field, ModalInput, ModalSelect } from '@/components/ui/EditModal'
+import { useToast } from '@/components/ui/Toaster'
+import { BookOpen } from 'lucide-react'
 import type { Entry, EntryType, EntryStatus } from '@context-engine/shared'
 
 const TYPES: { value: EntryType; label: string }[] = [
@@ -20,6 +22,7 @@ interface Props {
 }
 
 export function EditEntryModal({ entry, onClose, onSaved }: Props) {
+  const { toast } = useToast()
   const [type, setType]       = useState<EntryType>('note')
   const [title, setTitle]     = useState('')
   const [content, setContent] = useState('')
@@ -50,6 +53,7 @@ export function EditEntryModal({ entry, onClose, onSaved }: Props) {
       }),
     })
     setLoading(false)
+    toast('Entry saved')
     onSaved()
     onClose()
   }
@@ -57,6 +61,7 @@ export function EditEntryModal({ entry, onClose, onSaved }: Props) {
   async function handleDelete() {
     if (!entry) return
     await fetch(`/api/entries/${entry.id}`, { method: 'DELETE' })
+    toast('Entry deleted', 'warning')
     onSaved()
     onClose()
   }
@@ -64,7 +69,30 @@ export function EditEntryModal({ entry, onClose, onSaved }: Props) {
   return (
     <EditModal
       open={!!entry}
-      title="Edit entry"
+      title={
+        entry ? (
+          <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            Edit entry
+            <a
+              href={`/dashboard/notes/${entry.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={e => e.stopPropagation()}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+                fontFamily: 'var(--font-inter)', fontSize: 11, fontWeight: 400,
+                color: 'var(--text-muted)', textDecoration: 'none',
+                border: '1px solid var(--border)', borderRadius: 4, padding: '2px 7px',
+                transition: 'color 0.15s, border-color 0.15s',
+              }}
+              onMouseEnter={e => { const el = e.currentTarget; el.style.color = 'var(--accent)'; el.style.borderColor = 'var(--accent)' }}
+              onMouseLeave={e => { const el = e.currentTarget; el.style.color = 'var(--text-muted)'; el.style.borderColor = 'var(--border)' }}
+            >
+              <BookOpen size={10} /> Full page
+            </a>
+          </span>
+        ) : 'Edit entry'
+      }
       onClose={onClose}
       onSave={handleSave}
       onDelete={handleDelete}

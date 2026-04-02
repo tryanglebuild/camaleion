@@ -18,4 +18,6 @@ export const SECTION_INDEX = {
   PLANS:      9,
   CONTENT:   10,
   GRAPH:     11,
+  SETTINGS:  12,
+  TIMELINE:  13,
 } as const

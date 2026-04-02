@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { EditModal, Field, ModalInput } from '@/components/ui/EditModal'
+import { useToast } from '@/components/ui/Toaster'
 import type { Person } from '@context-engine/shared'
 
 interface Props {
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export function EditPersonModal({ person, onClose, onSaved }: Props) {
+  const { toast } = useToast()
   const [name, setName]       = useState('')
   const [role, setRole]       = useState('')
   const [company, setCompany] = useState('')
@@ -41,6 +43,7 @@ export function EditPersonModal({ person, onClose, onSaved }: Props) {
       }),
     })
     setLoading(false)
+    toast('Person saved')
     onSaved()
     onClose()
   }
@@ -48,6 +51,7 @@ export function EditPersonModal({ person, onClose, onSaved }: Props) {
   async function handleDelete() {
     if (!person) return
     await fetch(`/api/people/${person.id}`, { method: 'DELETE' })
+    toast('Person deleted', 'warning')
     onSaved()
     onClose()
   }
