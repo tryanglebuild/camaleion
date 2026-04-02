@@ -1,26 +1,32 @@
 {
-  "name": "@context-engine/mcp-server",
-  "version": "0.0.1",
+  "name": "camaleon-mcp-server",
+  "version": "1.0.0",
+  "description": "Context Engine — MCP server. Gives persistent memory and semantic search to AI assistants.",
   "type": "module",
   "main": "./dist/index.js",
+  "files": ["dist"],
   "scripts": {
-    "build": "tsc",
+    "build": "node build.mjs",
     "dev": "tsc --watch",
     "start": "node --env-file=../../.env dist/index.js",
     "type-check": "tsc --noEmit",
+    "prepublishOnly": "npm run build",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"
   },
+  "keywords": ["camaleon", "context-engine", "mcp", "claude", "ai", "memory"],
+  "license": "MIT",
   "dependencies": {
-    "@context-engine/shared": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.10.1",
     "@supabase/supabase-js": "^2.49.3",
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@context-engine/shared": "workspace:*",
     "@types/node": "^22.14.0",
     "@vitest/coverage-v8": "^4.1.2",
+    "esbuild": "^0.25.0",
     "typescript": "^5.7.3",
     "vitest": "^4.1.2"
   }

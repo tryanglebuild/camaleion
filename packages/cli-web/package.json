@@ -1,0 +1,27 @@
+{
+  "name": "camaleon-web",
+  "version": "1.0.0",
+  "description": "Context Engine — Web UI. Installs and runs the dashboard on your machine.",
+  "type": "module",
+  "bin": {
+    "camaleon-web": "./bin/camaleon-web.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "files": ["bin", "dist"],
+  "dependencies": {
+    "@clack/prompts": "^0.9.1",
+    "kleur": "^4.1.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.3"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": ["camaleon", "context-engine", "mcp", "ai"],
+  "license": "MIT"
+}

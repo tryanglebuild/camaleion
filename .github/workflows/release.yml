@@ -1,0 +1,88 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # needed to create GitHub Releases
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: 'https://registry.npmjs.org'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # ── Build shared ──────────────────────────────────────────────────────────
+      - name: Build shared
+        run: pnpm --filter @context-engine/shared build
+
+      # ── Build web-ui standalone ───────────────────────────────────────────────
+      - name: Build web-ui
+        working-directory: packages/web-ui
+        run: pnpm build
+        env:
+          NODE_ENV: production
+
+      - name: Package web standalone
+        run: |
+          STANDALONE=packages/web-ui/.next/standalone
+          # Copy static assets into the standalone folder (required by Next.js)
+          cp -r packages/web-ui/.next/static $STANDALONE/.next/static
+          cp -r packages/web-ui/public $STANDALONE/public 2>/dev/null || true
+          # Add version file
+          echo '{"version":"${{ github.ref_name }}"}' | sed 's/v//' > $STANDALONE/version.json
+          # Create tarball (contents extracted directly to install dir)
+          tar -czf web-standalone.tar.gz -C $STANDALONE .
+        shell: bash
+
+      # ── Build MCP server ──────────────────────────────────────────────────────
+      - name: Build mcp-server
+        run: pnpm --filter camaleon-mcp-server build
+
+      # ── Build CLI packages ────────────────────────────────────────────────────
+      - name: Build cli-web
+        run: pnpm --filter camaleon-web build
+
+      - name: Build cli-mcp
+        run: pnpm --filter camaleon-mcp build
+
+      # ── GitHub Release ────────────────────────────────────────────────────────
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: web-standalone.tar.gz
+          generate_release_notes: true
+
+      # ── Publish to npm ────────────────────────────────────────────────────────
+      - name: Publish camaleon-mcp-server
+        working-directory: packages/mcp-server
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish camaleon-web
+        working-directory: packages/cli-web
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish camaleon-mcp
+        working-directory: packages/cli-mcp
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
