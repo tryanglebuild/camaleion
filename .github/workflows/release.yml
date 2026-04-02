@@ -41,11 +41,15 @@ jobs:
       - name: Package web standalone
         run: |
           STANDALONE=packages/web-ui/.next/standalone
+          # Ensure target dirs exist before copying
+          mkdir -p $STANDALONE/.next/static
+          mkdir -p $STANDALONE/public
           # Copy static assets into the standalone folder (required by Next.js)
-          cp -r packages/web-ui/.next/static $STANDALONE/.next/static
-          cp -r packages/web-ui/public $STANDALONE/public 2>/dev/null || true
+          cp -r packages/web-ui/.next/static/. $STANDALONE/.next/static/
+          cp -r packages/web-ui/public/. $STANDALONE/public/ 2>/dev/null || true
           # Add version file
-          echo '{"version":"${{ github.ref_name }}"}' | sed 's/v//' > $STANDALONE/version.json
+          VERSION="${{ github.ref_name }}"
+          echo "{\"version\":\"${VERSION#v}\"}" > $STANDALONE/version.json
           # Create tarball (contents extracted directly to install dir)
           tar -czf web-standalone.tar.gz -C $STANDALONE .
         shell: bash
