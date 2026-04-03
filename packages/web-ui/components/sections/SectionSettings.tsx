@@ -165,8 +165,14 @@ export function SectionSettings({ direction }: SectionProps) {
 
   async function runDeploy() {
     setDeploying(true)
-    setDeploySteps([{ name: 'Connecting…', status: 'running' }])
+    setDeploySteps([{ name: 'Saving credentials…', status: 'running' }])
     try {
+      await fetch('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ supabaseUrl, supabaseAnonKey, supabaseServiceKey, supabaseAccessToken, openrouterKey }),
+      })
+      setDeploySteps([{ name: 'Connecting…', status: 'running' }])
       const res = await fetch('/api/deploy', { method: 'POST' })
       const data = await res.json() as { steps?: DeployStep[]; error?: string; ok?: boolean }
       if (data.error) {
