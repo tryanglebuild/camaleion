@@ -13,9 +13,12 @@ export interface AppConfig {
 
 let _cache: AppConfig | null = null
 
+export function clearConfigCache() {
+  _cache = null
+}
+
 export function getConfig(): AppConfig {
-  // In development, re-read on every call so settings changes take effect immediately
-  if (process.env.NODE_ENV === 'production' && _cache) return _cache
+  if (_cache) return _cache
   try {
     const raw = fs.readFileSync(CONFIG_PATH, 'utf-8')
     _cache = JSON.parse(raw) as AppConfig

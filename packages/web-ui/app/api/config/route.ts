@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import fs from 'fs'
 import path from 'path'
+import { clearConfigCache } from '@/lib/config.server'
 
 const CONFIG_PATH = path.join(process.cwd(), 'config.json')
 
@@ -51,6 +52,7 @@ export async function POST(req: NextRequest) {
     if (body.supabaseAccessToken?.endsWith('…')) next.supabaseAccessToken = current.supabaseAccessToken
     if (body.openrouterKey?.endsWith('…'))       next.openrouterKey       = current.openrouterKey
     fs.writeFileSync(CONFIG_PATH, JSON.stringify(next, null, 2))
+    clearConfigCache()
     return NextResponse.json({ ok: true })
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Unknown' }, { status: 500 })
