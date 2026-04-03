@@ -11,7 +11,7 @@ export interface McpEnv {
   supabaseUrl: string
   supabaseAnonKey: string
   supabaseServiceKey: string
-  openaiKey: string
+  braveApiKey?: string
 }
 
 export function loadSavedEnv(): Partial<McpEnv> {
@@ -26,19 +26,19 @@ export function loadSavedEnv(): Partial<McpEnv> {
     supabaseUrl: result['SUPABASE_URL'],
     supabaseAnonKey: result['SUPABASE_ANON_KEY'],
     supabaseServiceKey: result['SUPABASE_SERVICE_KEY'],
-    openaiKey: result['OPENAI_API_KEY'],
+    braveApiKey: result['BRAVE_API_KEY'],
   }
 }
 
 export function saveEnv(env: McpEnv): void {
   mkdirSync(join(homedir(), '.camaleon'), { recursive: true })
-  const content = [
+  const lines = [
     `SUPABASE_URL=${env.supabaseUrl}`,
     `SUPABASE_ANON_KEY=${env.supabaseAnonKey}`,
     `SUPABASE_SERVICE_KEY=${env.supabaseServiceKey}`,
-    `OPENAI_API_KEY=${env.openaiKey}`,
-  ].join('\n')
-  writeFileSync(ENV_FILE, content, { mode: 0o600 })
+  ]
+  if (env.braveApiKey) lines.push(`BRAVE_API_KEY=${env.braveApiKey}`)
+  writeFileSync(ENV_FILE, lines.join('\n'), { mode: 0o600 })
 }
 
 export function installServer(): string {

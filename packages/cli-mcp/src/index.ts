@@ -21,7 +21,7 @@ function printMcpConfig(serverPath: string, env: McpEnv): void {
           SUPABASE_URL: env.supabaseUrl,
           SUPABASE_ANON_KEY: env.supabaseAnonKey,
           SUPABASE_SERVICE_KEY: env.supabaseServiceKey,
-          OPENAI_API_KEY: env.openaiKey,
+          ...(env.braveApiKey ? { BRAVE_API_KEY: env.braveApiKey } : {}),
         },
       },
     },
@@ -64,12 +64,11 @@ async function cmdInstall() {
           initialValue: saved.supabaseServiceKey ?? '',
           validate: (v) => (!v ? 'Required' : undefined),
         }),
-      openaiKey: () =>
+      braveApiKey: () =>
         p.text({
-          message: 'OpenAI API Key',
-          placeholder: 'sk-...',
-          initialValue: saved.openaiKey ?? '',
-          validate: (v) => (!v ? 'Required' : undefined),
+          message: 'Brave Search API Key (optional — enables fetch_world_context)',
+          placeholder: 'BSA...',
+          initialValue: saved.braveApiKey ?? '',
         }),
     },
     {
