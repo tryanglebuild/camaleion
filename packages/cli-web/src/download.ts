@@ -1,5 +1,5 @@
 import { get } from 'node:https'
-import { createWriteStream, mkdirSync, writeFileSync } from 'node:fs'
+import { createWriteStream, mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { execSync } from 'node:child_process'
@@ -57,7 +57,16 @@ export async function downloadAndExtract(version: string): Promise<void> {
   await httpsDownload(asset.browser_download_url, tarPath)
 
   mkdirSync(INSTALL_DIR, { recursive: true })
+
+  // Preserve user config across updates
+  const configPath = join(INSTALL_DIR, 'packages', 'web-ui', 'config.json')
+  const existingConfig = existsSync(configPath) ? readFileSync(configPath, 'utf-8') : null
+
   execSync(`tar -xzf "${tarPath}" -C "${INSTALL_DIR}"`, { stdio: 'pipe' })
+
+  if (existingConfig) {
+    writeFileSync(configPath, existingConfig)
+  }
 
   writeFileSync(join(INSTALL_DIR, 'version.json'), JSON.stringify({ version }, null, 2))
 }
