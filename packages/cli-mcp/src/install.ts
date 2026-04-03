@@ -5,6 +5,7 @@ import { execSync } from 'node:child_process'
 
 export const MCP_DIR = join(homedir(), '.camaleon', 'mcp')
 export const ENV_FILE = join(homedir(), '.camaleon', '.env')
+export const MCP_MANIFEST = join(homedir(), '.camaleon', 'mcp.json')
 
 export interface McpEnv {
   supabaseUrl: string
@@ -54,7 +55,9 @@ export function installServer(): string {
     stdio: 'pipe',
   })
 
-  return join(MCP_DIR, 'node_modules', 'camaleon-mcp-server', 'dist', 'index.js')
+  const serverPath = join(MCP_DIR, 'node_modules', 'camaleon-mcp-server', 'dist', 'index.js')
+  writeFileSync(MCP_MANIFEST, JSON.stringify({ path: serverPath }, null, 2))
+  return serverPath
 }
 
 export function getInstalledServerPath(): string {

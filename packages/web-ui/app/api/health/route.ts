@@ -12,11 +12,15 @@ async function checkSupabase(): Promise<{ ok: boolean; ms: number }> {
 }
 
 async function checkMCP(): Promise<{ ok: boolean }> {
-  // MCP server is stdio-based — check if the dist file exists and is executable
+  // Read path from manifest written by camaleon-mcp after install
   try {
-    const { existsSync } = await import('fs')
-    const ok = existsSync('/home/mc/work/projects/tryangle/project-ai-system/packages/mcp-server/dist/index.js')
-    return { ok }
+    const { existsSync, readFileSync } = await import('fs')
+    const { join } = await import('path')
+    const { homedir } = await import('os')
+    const manifest = join(homedir(), '.camaleon', 'mcp.json')
+    if (!existsSync(manifest)) return { ok: false }
+    const { path } = JSON.parse(readFileSync(manifest, 'utf-8')) as { path: string }
+    return { ok: existsSync(path) }
   } catch {
     return { ok: false }
   }

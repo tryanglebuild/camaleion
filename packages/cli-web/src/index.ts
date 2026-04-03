@@ -33,6 +33,18 @@ async function cmdInstall() {
 
   if (current === latest) {
     p.note(`Already on v${latest}. Run ${kleur.cyan('camaleon-web update')} to force reinstall.`)
+    const st = service.status()
+    if (st !== 'active') {
+      const s2 = p.spinner()
+      s2.start('Starting service...')
+      try {
+        service.start()
+        s2.stop('Service started')
+      } catch (e) {
+        s2.stop(kleur.red('Failed to start: ' + (e as Error).message))
+        process.exit(1)
+      }
+    }
     p.outro(`Running at ${kleur.cyan(`http://localhost:${PORT}`)}`)
     return
   }

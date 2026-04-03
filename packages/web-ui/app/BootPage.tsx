@@ -50,13 +50,11 @@ export default function BootPage() {
     setProgress(STEPS[2].progress)
     await delay(280)
 
-    const ok = result?.supabase?.ok && result?.mcp?.ok
+    // MCP is optional — only Supabase is required to boot
+    const ok = result?.supabase?.ok
 
     if (!ok) {
-      const reasons = []
-      if (!result?.supabase?.ok) reasons.push('Database unreachable')
-      if (!result?.mcp?.ok)      reasons.push('MCP server not found')
-      setErrorMsg(reasons.join(' · ') || 'Connection failed')
+      setErrorMsg('Database unreachable')
       setProgress(60)
       setPhase('error')
       return
@@ -180,31 +178,49 @@ export default function BootPage() {
           </AnimatePresence>
         </motion.div>
 
-        {/* Error retry */}
+        {/* Error actions */}
         <AnimatePresence>
           {phase === 'error' && (
-            <motion.button
+            <motion.div
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
               transition={{ delay: 0.15, duration: 0.25 }}
-              onClick={handleRetry}
-              disabled={retrying}
-              style={{
-                marginTop: 24,
-                fontFamily: 'var(--font-inter)', fontSize: 13, fontWeight: 500,
-                padding: '8px 20px', borderRadius: 8,
-                border: '1px solid var(--border)',
-                color: 'var(--text-secondary)', background: 'var(--surface-1)',
-                cursor: retrying ? 'not-allowed' : 'pointer',
-                opacity: retrying ? 0.5 : 1,
-                transition: 'background 0.15s',
-              }}
-              onMouseEnter={e => { if (!retrying) e.currentTarget.style.background = 'var(--surface-2)' }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'var(--surface-1)' }}
+              style={{ marginTop: 24, display: 'flex', gap: 8 }}
             >
-              {retrying ? 'Retrying…' : 'Try again'}
-            </motion.button>
+              <button
+                onClick={handleRetry}
+                disabled={retrying}
+                style={{
+                  fontFamily: 'var(--font-inter)', fontSize: 13, fontWeight: 500,
+                  padding: '8px 20px', borderRadius: 8,
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-secondary)', background: 'var(--surface-1)',
+                  cursor: retrying ? 'not-allowed' : 'pointer',
+                  opacity: retrying ? 0.5 : 1,
+                  transition: 'background 0.15s',
+                }}
+                onMouseEnter={e => { if (!retrying) e.currentTarget.style.background = 'var(--surface-2)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'var(--surface-1)' }}
+              >
+                {retrying ? 'Retrying…' : 'Try again'}
+              </button>
+              <button
+                onClick={() => router.push('/dashboard?section=settings')}
+                style={{
+                  fontFamily: 'var(--font-inter)', fontSize: 13, fontWeight: 500,
+                  padding: '8px 20px', borderRadius: 8,
+                  border: '1px solid var(--accent)',
+                  color: 'var(--accent)', background: 'transparent',
+                  cursor: 'pointer',
+                  transition: 'background 0.15s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'color-mix(in srgb, var(--accent) 10%, transparent)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+              >
+                Configure
+              </button>
+            </motion.div>
           )}
         </AnimatePresence>
       </motion.div>

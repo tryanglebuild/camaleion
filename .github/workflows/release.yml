@@ -41,15 +41,18 @@ jobs:
       - name: Package web standalone
         run: |
           STANDALONE=packages/web-ui/.next/standalone
-          # Ensure target dirs exist before copying
-          mkdir -p $STANDALONE/.next/static
-          mkdir -p $STANDALONE/public
-          # Copy static assets into the standalone folder (required by Next.js)
-          cp -r packages/web-ui/.next/static/. $STANDALONE/.next/static/
-          cp -r packages/web-ui/public/. $STANDALONE/public/ 2>/dev/null || true
-          # Add version file
+          # server.js does process.chdir(__dirname) so static assets must live
+          # next to it at packages/web-ui/.next/static and packages/web-ui/public
+          mkdir -p $STANDALONE/packages/web-ui/.next/static
+          mkdir -p $STANDALONE/packages/web-ui/public
+          cp -r packages/web-ui/.next/static/. $STANDALONE/packages/web-ui/.next/static/
+          cp -r packages/web-ui/public/. $STANDALONE/packages/web-ui/public/ 2>/dev/null || true
+          # Add version file at root so cli-web can read it
           VERSION="${{ github.ref_name }}"
           echo "{\"version\":\"${VERSION#v}\"}" > $STANDALONE/version.json
+          # Add empty default config.json so server finds the file on first boot
+          echo '{"supabaseUrl":"","supabaseAnonKey":"","supabaseServiceKey":"","supabaseAccessToken":"","openrouterKey":""}' \
+            > $STANDALONE/packages/web-ui/config.json
           # Create tarball (contents extracted directly to install dir)
           tar -czf web-standalone.tar.gz -C $STANDALONE .
         shell: bash
