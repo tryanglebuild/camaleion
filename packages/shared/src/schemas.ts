@@ -203,3 +203,69 @@ export type SetGenerationProfileInput = z.infer<typeof SetGenerationProfileInput
 export type FetchWorldContextInput = z.infer<typeof FetchWorldContextInputSchema>
 export type GeneratePostsInput = z.infer<typeof GeneratePostsInputSchema>
 export type SavePostInput = z.infer<typeof SavePostInputSchema>
+
+// ── Module: Agents ────────────────────────────────────────────────────────────
+
+export const AgentStatusSchema = z.enum(['active', 'inactive'])
+export const AgentSessionStatusSchema = z.enum(['active', 'completed', 'failed'])
+export const AgentMessageTypeSchema = z.enum(['task', 'result', 'request', 'question', 'answer', 'context', 'state', 'error'])
+export const AgentVerdictSchema = z.enum(['pass', 'fail', 'weak'])
+
+export const GetAgentsInputSchema = z.object({
+  status: AgentStatusSchema.optional(),
+})
+
+export const RegisterAgentInputSchema = z.object({
+  name:          z.string().min(1),
+  role:          z.string().min(1),
+  system_prompt: z.string().min(1),
+  color:         z.string().optional(),
+  status:        AgentStatusSchema.optional(),
+})
+
+export const SyncAgentsInputSchema = z.object({
+  local_agents: z.array(z.object({
+    name:      z.string().min(1),
+    file_path: z.string().min(1),
+  })),
+})
+
+export const StartSessionInputSchema = z.object({
+  goal: z.string().min(1),
+})
+
+export const EndSessionInputSchema = z.object({
+  session_id: z.string().uuid(),
+  status:     AgentSessionStatusSchema.optional().default('completed'),
+  summary:    z.string().optional(),
+})
+
+export const LogMessageInputSchema = z.object({
+  session_id:    z.string().uuid(),
+  from_agent:    z.string().min(1),
+  to_agent:      z.string().min(1),
+  type:          AgentMessageTypeSchema,
+  content:       z.string().min(1),
+  task_id:       z.string().optional(),
+  ref_task:      z.string().optional(),
+  expects_reply: z.boolean().optional().default(false),
+  verdict:       AgentVerdictSchema.optional(),
+})
+
+export const GetSessionContextInputSchema = z.object({
+  session_id: z.string().uuid(),
+})
+
+export const ListSessionsInputSchema = z.object({
+  status: AgentSessionStatusSchema.optional(),
+  limit:  z.number().int().positive().max(50).default(20),
+})
+
+export type GetAgentsInput         = z.infer<typeof GetAgentsInputSchema>
+export type RegisterAgentInput     = z.infer<typeof RegisterAgentInputSchema>
+export type SyncAgentsInput        = z.infer<typeof SyncAgentsInputSchema>
+export type StartSessionInput      = z.infer<typeof StartSessionInputSchema>
+export type EndSessionInput        = z.infer<typeof EndSessionInputSchema>
+export type LogMessageInput        = z.infer<typeof LogMessageInputSchema>
+export type GetSessionContextInput = z.infer<typeof GetSessionContextInputSchema>
+export type ListSessionsInput      = z.infer<typeof ListSessionsInputSchema>

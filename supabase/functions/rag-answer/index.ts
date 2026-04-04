@@ -1,12 +1,10 @@
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
-const FREE_MODEL     = 'meta-llama/llama-3.1-8b-instruct:free'
+const FREE_MODEL = 'anthropic/claude-3.5-haiku'
 
 interface ResultEntry {
   title:   string
@@ -26,19 +24,50 @@ function buildPrompt(query: string, results: ResultEntry[]): string {
     })
     .join('\n\n')
 
-  return `You are a personal knowledge assistant. Answer the user's question based ONLY on the context below.
-Be concise and direct. If the context doesn't contain enough information, say so.
-Do NOT make up information. Reference entries by their number [1], [2], etc. when relevant.
+  return `You are a high-precision knowledge assistant operating in a Retrieval-Augmented Generation (RAG) system.
 
-CONTEXT:
+## Objective
+Provide a complete, accurate, and well-structured answer to the user's question using ONLY the provided context.
+
+## Strict Rules
+- Use ONLY the information from the CONTEXT.
+- Do NOT invent, infer, or assume any information not explicitly present.
+- If the context is insufficient, explicitly state what is missing.
+- Prioritize correctness over fluency.
+
+## Answer Requirements
+1. Provide a COMPLETE answer covering all relevant aspects found in the context.
+2. Structure the answer clearly (use sections, bullet points, or steps when helpful).
+3. When multiple context entries are relevant, synthesize them into a cohesive explanation.
+4. Always cite sources using their reference numbers (e.g., [1], [2]) immediately after the supporting statement.
+5. If different sources provide complementary or conflicting info, mention it explicitly.
+6. Do NOT include any information without a citation.
+
+## Output Format
+
+### Answer
+<well-structured, detailed answer>
+
+### Sources
+- [1] Short description of what this source contributed
+- [2] Short description of what this source contributed
+
+### Confidence
+- High / Medium / Low
+- Brief justification (e.g., "All claims directly supported by multiple sources")
+
+---
+
+## Context
 ${ctx}
 
-QUESTION: ${query}
+## Question
+${query}
 
-ANSWER:`
+## Answer`
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
 
   const apiKey = Deno.env.get('OPENROUTER_API_KEY')

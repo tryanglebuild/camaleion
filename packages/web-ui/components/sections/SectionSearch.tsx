@@ -1,10 +1,11 @@
 'use client'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useState, useEffect, useRef } from 'react'
-import { Search as SearchIcon, Clock, X, Zap, ExternalLink, SlidersHorizontal } from 'lucide-react'
+import { X, ExternalLink, Clock } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import type { SectionProps } from './types'
 import type { Entry, EntryType, EntryStatus } from '@context-engine/shared'
-import { listVariants, rowVariants } from '@/lib/animation-variants'
 import { SectionWrapper, SectionHeader } from './SectionLayout'
 import { SECTION_INDEX } from './types'
 
@@ -55,7 +56,201 @@ function scoreLabel(s: number) {
   return               { text: 'LOW',  color: '#71717A' }
 }
 
+function relativeDate(iso: string): string {
+  const d = new Date(iso)
+  const now = new Date()
+  const diff = Math.floor((now.getTime() - d.getTime()) / 1000)
+  if (diff < 60) return 'now'
+  if (diff < 3600) return `${Math.floor(diff / 60)}m`
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h`
+  if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`
+  return d.toLocaleDateString('en', { month: 'short', day: 'numeric' })
+}
+
 const RAG_URL = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/rag-answer`
+
+interface TerminalInputProps {
+  compact: boolean
+  draft: string
+  setDraft: (v: string) => void
+  setResults: (v: SearchEntry[]) => void
+  setSearched: (v: boolean) => void
+  run: (q?: string, type?: EntryType | '') => void
+  showHistory: boolean
+  setShowHistory: (v: boolean) => void
+  history: string[]
+  inputRef: React.RefObject<HTMLInputElement | null>
+}
+
+function TerminalInput({ compact, draft, setDraft, setResults, setSearched, run, showHistory, setShowHistory, history, inputRef }: TerminalInputProps) {
+  return (
+    <div style={{ position: 'relative', width: '100%' }}>
+      {/* Prefix >_ */}
+      <span style={{
+        position: 'absolute',
+        left: 16,
+        top: '50%',
+        transform: 'translateY(-50%)',
+        fontFamily: 'var(--font-jetbrains-mono)',
+        fontSize: compact ? 12 : 14,
+        color: 'var(--search-accent, var(--accent))',
+        pointerEvents: 'none',
+        userSelect: 'none',
+        lineHeight: 1,
+      }}>
+        {'>_'}
+      </span>
+      <input
+        ref={inputRef}
+        value={draft}
+        onChange={e => { setDraft(e.target.value); if (e.target.value === '') setShowHistory(true) }}
+        onFocus={() => { if (!draft) setShowHistory(true) }}
+        onBlur={() => setTimeout(() => setShowHistory(false), 150)}
+        onKeyDown={e => e.key === 'Enter' && run()}
+        placeholder="Search for anything…"
+        style={{
+          width: '100%',
+          boxSizing: 'border-box',
+          height: compact ? 40 : 52,
+          paddingLeft: 44,
+          paddingRight: 80,
+          background: 'var(--surface-2)',
+          border: '1px solid var(--border)',
+          borderRadius: 0,
+          color: 'var(--text-primary)',
+          fontFamily: 'var(--font-jetbrains-mono)',
+          fontSize: compact ? 14 : 15,
+          outline: 'none',
+          transition: 'border-color 0.15s, box-shadow 0.15s',
+        }}
+        onFocusCapture={e => {
+          const t = e.target as HTMLInputElement
+          t.style.borderColor = 'var(--accent)'
+          t.style.boxShadow = '0 0 0 1px var(--accent)'
+        }}
+        onBlurCapture={e => {
+          const t = e.target as HTMLInputElement
+          t.style.borderColor = 'var(--border)'
+          t.style.boxShadow = 'none'
+        }}
+      />
+      {/* Submit button */}
+      <div style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center', gap: 4 }}>
+        {draft && (
+          <button
+            onClick={() => { setDraft(''); setResults([]); setSearched(false) }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 2 }}
+          >
+            <X size={11} />
+          </button>
+        )}
+        <button
+          onClick={() => run()}
+          style={{
+            fontFamily: 'var(--font-jetbrains-mono)',
+            fontSize: 11,
+            border: '1px solid var(--border)',
+            background: 'none',
+            color: 'var(--text-secondary)',
+            cursor: 'pointer',
+            padding: '4px 8px',
+            borderRadius: 0,
+          }}
+        >
+          [↵]
+        </button>
+      </div>
+
+      {/* History dropdown */}
+      <AnimatePresence>
+        {showHistory && history.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+            style={{
+              position: 'absolute', top: '110%', left: 0, right: 0, zIndex: 50,
+              background: 'var(--surface-1)', border: '1px solid var(--border)',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+              borderRadius: 0, overflow: 'hidden',
+            }}
+          >
+            {history.slice(0, 6).map((h, i) => (
+              <div
+                key={i}
+                onMouseDown={() => { setDraft(h); run(h) }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '9px 14px', cursor: 'pointer', transition: 'background 0.1s',
+                  borderBottom: i < Math.min(history.length, 6) - 1 ? '1px solid var(--border)' : 'none',
+                }}
+                onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'var(--surface-2)'}
+                onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
+              >
+                <Clock size={9} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 12, color: 'var(--text-secondary)' }}>{h}</span>
+              </div>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+interface HistoryItemProps {
+  index: number
+  query: string
+  onSelect: () => void
+}
+
+function HistoryItem({ index, query, onSelect }: HistoryItemProps) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <div
+      onMouseDown={onSelect}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        display: 'flex', alignItems: 'baseline', gap: 12,
+        padding: '6px 0', cursor: 'pointer',
+        background: hovered ? 'var(--search-accent-muted)' : 'transparent',
+        paddingLeft: hovered ? 8 : 0,
+        transition: 'background 100ms ease, padding-left 100ms ease',
+      }}
+    >
+      <span style={{
+        fontFamily: 'var(--font-jetbrains-mono)', fontSize: 11,
+        color: hovered ? 'var(--search-accent)' : 'var(--search-accent-dim)',
+        minWidth: 24, flexShrink: 0, transition: 'color 100ms ease',
+      }}>
+        {String(index + 1).padStart(2, '0')}.
+      </span>
+      <span style={{
+        fontFamily: 'var(--font-jetbrains-mono)', fontSize: 13,
+        color: hovered ? 'var(--text-secondary)' : 'var(--text-muted)',
+        transition: 'color 100ms ease',
+        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+      }}>
+        {query}
+      </span>
+    </div>
+  )
+}
+
+const tabBase: React.CSSProperties = {
+  padding: '0 12px',
+  height: 40,
+  display: 'flex',
+  alignItems: 'center',
+  border: 'none',
+  background: 'none',
+  cursor: 'pointer',
+  fontFamily: 'var(--font-jetbrains-mono)',
+  fontSize: 11,
+  letterSpacing: '0.06em',
+  textTransform: 'uppercase',
+  whiteSpace: 'nowrap',
+  flexShrink: 0,
+}
 
 export function SectionSearch({ direction, onNavigateTo }: SectionProps) {
   const [draft, setDraft]               = useState('')
@@ -71,11 +266,19 @@ export function SectionSearch({ direction, onNavigateTo }: SectionProps) {
   const [selected, setSelected]         = useState<SearchEntry | null>(null)
   const [answer, setAnswer]             = useState('')
   const [answerLoading, setAnswerLoading] = useState(false)
-  const inputRef  = useRef<HTMLInputElement>(null)
-  const abortRef  = useRef<AbortController | null>(null)
-  const lastQuery = useRef('')
+  const inputRef       = useRef<HTMLInputElement>(null)
+  const abortRef       = useRef<AbortController | null>(null)
+  const lastQuery      = useRef('')
+  const answerScrollRef = useRef<HTMLDivElement>(null)
+  const filterRefetchRef = useRef(false)
 
   useEffect(() => { setHistory(getHistory()) }, [])
+
+  useEffect(() => {
+    if (answerScrollRef.current) {
+      answerScrollRef.current.scrollTop = answerScrollRef.current.scrollHeight
+    }
+  }, [answer])
 
   const filtered = results.filter(r => {
     if ((r.similarity ?? 1) < threshold) return false
@@ -144,11 +347,17 @@ export function SectionSearch({ direction, onNavigateTo }: SectionProps) {
     lastQuery.current = q_
     setDraft(q_)
     setLoading(true)
-    setSearched(false)
-    setResults([])
-    setSelected(null)
-    setAnswer('')
     setShowHistory(false)
+
+    if (!filterRefetchRef.current) {
+      // New search: reset to empty state
+      setSearched(false)
+      setResults([])
+      setSelected(null)
+      setAnswer('')
+    }
+    filterRefetchRef.current = false // reset flag
+
     const params = new URLSearchParams({ q: q_, limit: '20' })
     if (type_) params.set('type', type_)
     const res = await fetch(`/api/search?${params}`)
@@ -165,110 +374,15 @@ export function SectionSearch({ direction, onNavigateTo }: SectionProps) {
 
   // Rerun when type filter changes (if we already have a query)
   useEffect(() => {
-    if (searched && lastQuery.current) run(lastQuery.current, filterType)
+    if (searched && lastQuery.current) {
+      filterRefetchRef.current = true
+      run(lastQuery.current, filterType)
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterType])
 
-  // ── Shared input (rendered in both states, just moves) ──────────────
-  function SearchInput({ compact }: { compact: boolean }) {
-    return (
-      <div style={{ position: 'relative', width: compact ? '100%' : 400 }}>
-        <SearchIcon size={compact ? 13 : 15} style={{
-          position: 'absolute', left: compact ? 12 : 16, top: '50%',
-          transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none',
-        }} />
-        <input
-          ref={inputRef}
-          value={draft}
-          onChange={e => { setDraft(e.target.value); if (e.target.value === '') setShowHistory(true) }}
-          onFocus={() => { if (!draft) setShowHistory(true) }}
-          onBlur={() => setTimeout(() => setShowHistory(false), 150)}
-          onKeyDown={e => e.key === 'Enter' && run()}
-          placeholder={compact ? 'Search for anything…' : 'Search for anything…'}
-          style={{
-            width: '100%', boxSizing: 'border-box',
-            height: compact ? 36 : 44,
-            paddingLeft: compact ? 32 : 44,
-            paddingRight: draft ? (compact ? 68 : 80) : 16,
-            background: compact ? 'var(--surface-2)' : 'var(--surface-1)',
-            border: '1px solid var(--border)',
-            borderRadius: compact ? 8 : 12,
-            color: 'var(--text-primary)',
-            fontFamily: 'var(--font-inter)', fontSize: compact ? 13 : 14,
-            outline: 'none', transition: 'border-color 0.15s, box-shadow 0.15s',
-          }}
-          onFocusCapture={e => {
-            const t = e.target as HTMLInputElement
-            t.style.borderColor = 'var(--accent)'
-            t.style.boxShadow = '0 0 0 3px var(--accent-glow)'
-          }}
-          onBlurCapture={e => {
-            const t = e.target as HTMLInputElement
-            t.style.borderColor = 'var(--border)'
-            t.style.boxShadow = 'none'
-          }}
-        />
-        <div style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center', gap: 4 }}>
-          {draft && (
-            <button
-              onClick={() => { setDraft(''); setResults([]); setSearched(false) }}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 2 }}
-            >
-              <X size={11} />
-            </button>
-          )}
-          <button
-            onClick={() => run()}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 3,
-              background: compact ? 'var(--surface-3)' : 'var(--accent)',
-              border: compact ? '1px solid var(--border)' : 'none',
-              borderRadius: compact ? 5 : 8,
-              padding: compact ? '2px 8px' : '5px 11px',
-              cursor: 'pointer',
-              color: compact ? 'var(--text-secondary)' : 'white',
-            }}
-          >
-            <Zap size={compact ? 9 : 10} />
-            <span style={{ fontFamily: 'var(--font-inter)', fontSize: compact ? 10 : 11, fontWeight: 500 }}>
-              Run
-            </span>
-          </button>
-        </div>
-
-        {/* History dropdown */}
-        <AnimatePresence>
-          {showHistory && history.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-              style={{
-                position: 'absolute', top: '110%', left: 0, right: 0, zIndex: 50,
-                background: 'var(--surface-1)', border: '1px solid var(--border)',
-                boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
-                borderRadius: 10, overflow: 'hidden',
-              }}
-            >
-              {history.slice(0, 6).map((h, i) => (
-                <div
-                  key={i}
-                  onMouseDown={() => { setDraft(h); run(h) }}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 10,
-                    padding: '9px 14px', cursor: 'pointer', transition: 'background 0.1s',
-                    borderBottom: i < Math.min(history.length, 6) - 1 ? '1px solid var(--border)' : 'none',
-                  }}
-                  onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'var(--surface-2)'}
-                  onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
-                >
-                  <Clock size={9} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
-                  <span style={{ fontFamily: 'var(--font-inter)', fontSize: 12, color: 'var(--text-secondary)' }}>{h}</span>
-                </div>
-              ))}
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-    )
+  const terminalInputProps: Omit<TerminalInputProps, 'compact'> = {
+    draft, setDraft, setResults, setSearched, run, showHistory, setShowHistory, history, inputRef,
   }
 
   return (
@@ -277,72 +391,90 @@ export function SectionSearch({ direction, onNavigateTo }: SectionProps) {
         title="Search"
         subtitle="Semantic memory retrieval"
         rightSlot={searched ? (
-          <span style={{ fontFamily: 'var(--font-inter)', fontSize: 11, color: 'var(--text-secondary)' }}>
+          <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 11, color: 'var(--text-secondary)' }}>
             {filtered.length} results
           </span>
         ) : undefined}
       />
 
       <AnimatePresence mode="wait">
-        {/* ── EMPTY STATE: centered search experience ─────────────────────── */}
+        {/* ── EMPTY STATE ──────────────────────────────────────────────────── */}
         {!searched ? (
           <motion.div
             key="empty"
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, transition: { duration: 0.15 } }}
-            style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 24px' }}
+            style={{
+              position: 'relative', flex: 1, display: 'flex', flexDirection: 'column',
+              padding: 'var(--space-lg) var(--space-lg) var(--space-xl)',
+              '--search-accent': '#C8A84B',
+              '--search-accent-dim': '#8A7233',
+              '--search-accent-muted': 'rgba(200, 168, 75, 0.08)',
+              '--space-2xs': '4px',
+              '--space-xs': '8px',
+              '--space-sm': '16px',
+              '--space-md': '24px',
+              '--space-lg': '40px',
+              '--space-xl': '64px',
+              '--space-2xl': '96px',
+              '--rail-width': '2px',
+              '--rail-offset': '40px',
+              '--history-indent': '56px',
+            } as React.CSSProperties}
           >
-            {/* Icon */}
-            <div style={{
-              width: 56, height: 56, borderRadius: '50%',
-              background: 'var(--surface-2)', border: '1px solid var(--border)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              marginBottom: 20,
-            }}>
-              <SearchIcon size={22} style={{ color: 'var(--text-muted)' }} />
+            {/* 1. SearchStatusStrip */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+              marginBottom: 'var(--space-2xl)', fontFamily: 'var(--font-jetbrains-mono)' }}>
+              <div>
+                <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase',
+                  color: 'var(--text-muted)' }}>
+                  Memory System
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 'var(--space-2xs)' }}>
+                  last indexed just now
+                </div>
+              </div>
+              <div style={{ fontSize: 11, fontFamily: 'var(--font-jetbrains-mono)',
+                color: 'var(--text-secondary)', letterSpacing: '0.04em' }}>
+                {results.length > 0 ? `${results.length} results` : '—'}
+              </div>
             </div>
 
-            <h2 style={{
-              fontFamily: 'var(--font-space-grotesk)', fontSize: 22, fontWeight: 600,
-              color: 'var(--text-primary)', margin: '0 0 6px', letterSpacing: '-0.02em',
-            }}>
-              Search memory
-            </h2>
-            <p style={{ fontFamily: 'var(--font-inter)', fontSize: 13, color: 'var(--text-muted)', margin: '0 0 28px' }}>
-              Semantic search across all your entries
-            </p>
+            {/* 2. Left structural rail (absolute) */}
+            <div style={{ position: 'absolute', left: 'var(--rail-offset)', top: 'calc(var(--space-lg) + 56px)',
+              bottom: 'var(--space-xl)', width: 'var(--rail-width)',
+              background: 'var(--search-accent-dim)' }} />
 
-            <SearchInput compact={false} />
+            {/* 3. Content hanging off the rail */}
+            <div style={{ paddingLeft: 'var(--history-indent)', display: 'flex', flexDirection: 'column',
+              gap: 'var(--space-md)' }}>
 
-            {/* Loading */}
-            {loading && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 16 }}>
-                <div style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--accent)', animation: 'pulse-live 1s ease-in-out infinite' }} />
-                <span style={{ fontFamily: 'var(--font-inter)', fontSize: 12, color: 'var(--text-secondary)' }}>Searching…</span>
-              </div>
-            )}
+              {/* TerminalInput */}
+              <TerminalInput compact={false} {...terminalInputProps} />
 
-            {/* Recent history pills */}
-            {!loading && history.length > 0 && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 20, flexWrap: 'wrap', justifyContent: 'center', maxWidth: 400 }}>
-                <span style={{ fontFamily: 'var(--font-inter)', fontSize: 11, color: 'var(--text-muted)' }}>Recent:</span>
-                {history.slice(0, 5).map((h, i) => (
-                  <button
-                    key={i}
-                    onMouseDown={() => { setDraft(h); run(h) }}
-                    style={{
-                      fontFamily: 'var(--font-inter)', fontSize: 11, color: 'var(--text-secondary)',
-                      background: 'var(--surface-2)', border: '1px solid var(--border)',
-                      borderRadius: 20, padding: '3px 10px', cursor: 'pointer',
-                      transition: 'border-color 0.15s, color 0.15s',
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.color = 'var(--text-primary)' }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-secondary)' }}
-                  >
-                    {h}
-                  </button>
-                ))}
-              </div>
-            )}
+              {/* Loading indicator */}
+              {loading && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ width: 5, height: 5, borderRadius: '50%',
+                    background: 'var(--search-accent)', animation: 'pulse-live 1s ease-in-out infinite' }} />
+                  <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 11,
+                    color: 'var(--text-secondary)' }}>Searching…</span>
+                </div>
+              )}
+
+              {/* History */}
+              {!loading && history.length > 0 && (
+                <div>
+                  <div style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 10,
+                    letterSpacing: '0.1em', textTransform: 'uppercase',
+                    color: 'var(--text-muted)', marginBottom: 'var(--space-sm)' }}>
+                    History
+                  </div>
+                  {history.slice(0, 6).map((h, i) => (
+                    <HistoryItem key={h} index={i} query={h} onSelect={() => { setDraft(h); run(h) }} />
+                  ))}
+                </div>
+              )}
+            </div>
           </motion.div>
 
         ) : (
@@ -352,342 +484,464 @@ export function SectionSearch({ direction, onNavigateTo }: SectionProps) {
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}
           >
-            {/* Compact bar: search + threshold inline */}
+            {/* Compact top search bar */}
             <div style={{
-              padding: '10px 20px', borderBottom: '1px solid var(--border)',
-              display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0,
-              background: 'var(--surface-1)',
+              padding: '12px 24px',
+              borderBottom: '1px solid var(--border)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 16,
+              flexShrink: 0,
             }}>
               <div style={{ flex: 1 }}>
-                <SearchInput compact />
+                <TerminalInput compact {...terminalInputProps} />
               </div>
 
               {/* Threshold */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-                <span style={{ fontFamily: 'var(--font-inter)', fontSize: 11, color: 'var(--text-muted)' }}>
+                <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
                   min:
                 </span>
                 <input
                   type="range" min={0} max={0.95} step={0.05} value={threshold}
                   onChange={e => setThreshold(parseFloat(e.target.value))}
-                  style={{ width: 70, accentColor: 'var(--accent)', cursor: 'pointer' }}
+                  style={{ width: 80, accentColor: 'var(--accent)', cursor: 'pointer' }}
                 />
-                <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 11, color: 'var(--text-muted)', minWidth: 28 }}>
+                <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 11, color: 'var(--accent)', minWidth: 32 }}>
                   {threshold.toFixed(2)}
                 </span>
               </div>
 
+              {/* Loading dot */}
               {loading && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
-                  <div style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--accent)', animation: 'pulse-live 1s ease-in-out infinite' }} />
-                  <span style={{ fontFamily: 'var(--font-inter)', fontSize: 11, color: 'var(--text-secondary)' }}>Searching…</span>
-                </div>
+                <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent)', animation: 'pulse-live 1s ease-in-out infinite', flexShrink: 0 }} />
               )}
             </div>
 
-            {/* Filter pills: type + status + date */}
+            {/* Filter strip — tab underline style */}
             <div style={{
-              padding: '8px 20px', borderBottom: '1px solid var(--border)',
-              display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0,
-              background: 'var(--surface-1)',
+              display: 'flex',
+              alignItems: 'center',
+              height: 40,
+              borderBottom: '1px solid var(--border)',
+              padding: '0 24px',
+              overflowX: 'auto',
+              flexShrink: 0,
+              gap: 0,
             }}>
-              {/* Row 1: type */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                <SlidersHorizontal size={11} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
-                {(['', ...ALL_TYPES] as (EntryType | '')[]).map(t => {
-                  const tm = t ? TYPE_META[t] : null
-                  const active = filterType === t
-                  return (
-                    <button key={t || 'all'} onClick={() => setFilterType(t)} style={{
-                      fontFamily: 'var(--font-jetbrains-mono)', fontSize: 10,
-                      padding: '2px 9px', borderRadius: 20,
-                      border: active ? `1px solid ${tm?.color ?? 'var(--accent)'}` : '1px solid var(--border)',
-                      background: active ? `${tm?.color ?? 'var(--accent)'}18` : 'transparent',
-                      color: active ? (tm?.color ?? 'var(--accent)') : 'var(--text-muted)',
-                      cursor: 'pointer', transition: 'all 0.12s', letterSpacing: '0.06em',
-                    }}>
-                      {t === '' ? 'ALL' : tm?.label ?? t.toUpperCase()}
-                    </button>
-                  )
-                })}
-              </div>
-              {/* Row 2: status + date range */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                <div style={{ display: 'flex', gap: 4 }}>
-                  {(['', ...ALL_STATUSES] as (EntryStatus | '')[]).map(s => {
-                    const active = filterStatus === s
-                    const colors: Record<string, string> = { pending: '#EAB308', done: '#22C55E', blocked: '#EF4444', in_progress: '#3B82F6' }
-                    const c = s ? colors[s] : 'var(--accent)'
-                    return (
-                      <button key={s || 'any'} onClick={() => setFilterStatus(s)} style={{
-                        fontFamily: 'var(--font-jetbrains-mono)', fontSize: 9,
-                        padding: '2px 8px', borderRadius: 20,
-                        border: active ? `1px solid ${c}` : '1px solid var(--border)',
-                        background: active ? `${c}18` : 'transparent',
-                        color: active ? c : 'var(--text-muted)',
-                        cursor: 'pointer', transition: 'all 0.12s', letterSpacing: '0.06em',
-                      }}>
-                        {s === '' ? 'ANY STATUS' : s.replace('_', ' ').toUpperCase()}
-                      </button>
-                    )
-                  })}
-                </div>
-                <div style={{ width: 1, height: 14, background: 'var(--border)', flexShrink: 0 }} />
-                <div style={{ display: 'flex', gap: 4 }}>
-                  {([['', 'ALL TIME'], ['week', 'THIS WEEK'], ['month', 'LAST 30D']] as [DateRange, string][]).map(([v, label]) => {
-                    const active = filterDate === v
-                    return (
-                      <button key={v || 'all'} onClick={() => setFilterDate(v)} style={{
-                        fontFamily: 'var(--font-jetbrains-mono)', fontSize: 9,
-                        padding: '2px 8px', borderRadius: 20,
-                        border: active ? '1px solid var(--accent)' : '1px solid var(--border)',
-                        background: active ? 'var(--accent-glow)' : 'transparent',
-                        color: active ? 'var(--accent)' : 'var(--text-muted)',
-                        cursor: 'pointer', transition: 'all 0.12s', letterSpacing: '0.06em',
-                      }}>
-                        {label}
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
+              {/* Type group */}
+              {(['', ...ALL_TYPES] as (EntryType | '')[]).map(t => {
+                const tm = t ? TYPE_META[t] : null
+                const active = filterType === t
+                return (
+                  <button
+                    key={t || 'all'}
+                    onClick={() => setFilterType(t)}
+                    style={{
+                      ...tabBase,
+                      color: active ? 'var(--accent)' : 'var(--text-muted)',
+                      borderBottom: active ? '2px solid var(--accent)' : '2px solid transparent',
+                      marginBottom: active ? -1 : 0,
+                    }}
+                  >
+                    {t === '' ? 'ALL' : tm?.label ?? t.toUpperCase()}
+                  </button>
+                )
+              })}
+
+              {/* Divider */}
+              <div style={{ width: 1, height: 20, background: 'var(--border)', margin: '0 8px', flexShrink: 0 }} />
+
+              {/* Status group */}
+              {(['', ...ALL_STATUSES] as (EntryStatus | '')[]).map(s => {
+                const active = filterStatus === s
+                return (
+                  <button
+                    key={s || 'any'}
+                    onClick={() => setFilterStatus(s)}
+                    style={{
+                      ...tabBase,
+                      color: active ? 'var(--accent)' : 'var(--text-muted)',
+                      borderBottom: active ? '2px solid var(--accent)' : '2px solid transparent',
+                      marginBottom: active ? -1 : 0,
+                    }}
+                  >
+                    {s === '' ? 'ANY' : s.replace('_', ' ').toUpperCase()}
+                  </button>
+                )
+              })}
+
+              {/* Divider */}
+              <div style={{ width: 1, height: 20, background: 'var(--border)', margin: '0 8px', flexShrink: 0 }} />
+
+              {/* Date group */}
+              {([['', 'ALL TIME'], ['week', 'THIS WEEK'], ['month', 'LAST 30D']] as [DateRange, string][]).map(([v, label]) => {
+                const active = filterDate === v
+                return (
+                  <button
+                    key={v || 'alltime'}
+                    onClick={() => setFilterDate(v)}
+                    style={{
+                      ...tabBase,
+                      color: active ? 'var(--accent)' : 'var(--text-muted)',
+                      borderBottom: active ? '2px solid var(--accent)' : '2px solid transparent',
+                      marginBottom: active ? -1 : 0,
+                    }}
+                  >
+                    {label}
+                  </button>
+                )
+              })}
             </div>
 
-            {/* Body */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+            {/* 3-column body */}
+            <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
 
-              {/* AI Answer block */}
-              <AnimatePresence>
-                {(answer || answerLoading) && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-                    transition={{ duration: 0.2 }}
-                    style={{ flexShrink: 0, borderBottom: '1px solid var(--border)' }}
+              {/* LEFT — AI Synthesis panel */}
+              {(answer || answerLoading) && (
+                <div style={{
+                  width: 280,
+                  flexShrink: 0,
+                  borderRight: '1px solid var(--border)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  overflow: 'hidden',
+                }}>
+                  {/* Sticky header */}
+                  <div style={{
+                    padding: '12px 16px',
+                    borderBottom: '1px solid var(--border)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    flexShrink: 0,
+                  }}>
+                    <div style={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: '50%',
+                      background: 'var(--accent)',
+                      animation: answerLoading ? 'pulse-live 1.8s ease-in-out infinite' : 'none',
+                      flexShrink: 0,
+                    }} />
+                    <span style={{
+                      fontFamily: 'var(--font-jetbrains-mono)',
+                      fontSize: 10,
+                      letterSpacing: '0.1em',
+                      textTransform: 'uppercase',
+                      color: 'var(--text-muted)',
+                      flex: 1,
+                    }}>
+                      AI SYNTHESIS
+                    </span>
+                  </div>
+                  {/* Scrollable body */}
+                  <div
+                    ref={answerScrollRef}
+                    style={{ flex: 1, overflowY: 'auto', minHeight: 0, padding: 16 }}
                   >
-                    <div style={{ padding: '14px 20px', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                      {/* Left accent bar */}
-                      <div style={{ width: 3, alignSelf: 'stretch', borderRadius: 2, background: 'var(--accent)', flexShrink: 0, minHeight: 36 }} />
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 7 }}>
-                          <div style={{
-                            width: 4, height: 4, borderRadius: '50%', background: 'var(--accent)',
-                            animation: answerLoading ? 'pulse-live 1s ease-in-out infinite' : 'none',
-                          }} />
-                          <span style={{ fontFamily: 'var(--font-inter)', fontSize: 11, color: 'var(--text-secondary)', fontWeight: 500, letterSpacing: '0.04em' }}>
-                            AI synthesis{answerLoading ? '…' : ''}
-                          </span>
-                        </div>
-                        <p style={{ fontFamily: 'var(--font-inter)', fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.75, margin: 0, whiteSpace: 'pre-wrap' }}>
-                          {answer}
-                          {answerLoading && <span style={{ opacity: 0.5, animation: 'cursor-blink 1s step-end infinite' }}>▌</span>}
-                        </p>
-                      </div>
+                    <div style={{
+                      fontFamily: 'var(--font-inter)',
+                      fontSize: 13,
+                      lineHeight: 1.65,
+                      color: 'var(--text-secondary)',
+                    }}>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {answer}
+                      </ReactMarkdown>
+                      {answerLoading && <span style={{ opacity: 0.5 }}>▌</span>}
                     </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                  </div>
+                </div>
+              )}
 
-              {/* Results table + detail panel */}
-              <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
-
-                {/* Results list */}
-                <div
-                  data-inner-scroll
-                  style={{
-                    flex: selected ? '0 0 400px' : '1 1 0',
-                    overflowY: 'auto',
-                    borderRight: selected ? '1px solid var(--border)' : 'none',
-                    transition: 'flex 0.2s ease',
-                  }}
-                >
-                  {searched && filtered.length === 0 && !loading && (
-                    <div className="empty-state" style={{ padding: '60px 32px' }}>
-                      <div className="empty-state-icon">🤷</div>
-                      <p>No results found</p>
-                      <p className="empty-state-hint">Try lowering the threshold or rephrasing your query</p>
-                    </div>
-                  )}
-
-                  {filtered.length > 0 && (
-                    <motion.div variants={listVariants} initial="hidden" animate="visible">
-                      {filtered.map(r => {
-                        const tm = TYPE_META[r.type] ?? { color: '#71717A', label: r.type.toUpperCase() }
-                        const sim = r.similarity ?? 0
-                        const score = scoreLabel(sim)
-                        const isSelected = selected?.id === r.id
-                        return (
-                          <motion.div
-                            key={r.id}
-                            variants={rowVariants}
-                            onClick={() => setSelected(isSelected ? null : r)}
-                            className="search-row"
-                            style={{
-                              display: 'grid',
-                              gridTemplateColumns: '72px 58px 1fr 30px',
-                              alignItems: 'center',
-                              padding: '10px 16px',
-                              borderBottom: '1px solid var(--border)',
-                              cursor: 'pointer',
-                              background: isSelected ? 'var(--surface-2)' : 'transparent',
-                              borderLeft: isSelected ? '2px solid var(--accent)' : '2px solid transparent',
-                              transition: 'background 0.12s',
-                            }}
-                            whileHover={{ backgroundColor: 'var(--surface-2)' }}
-                          >
-                            {/* Type badge */}
-                            <span style={{
-                              fontFamily: 'var(--font-jetbrains-mono)', fontSize: 9, fontWeight: 700,
-                              color: tm.color, background: `${tm.color}18`,
-                              border: `1px solid ${tm.color}35`,
-                              borderRadius: 3, padding: '2px 5px',
-                              letterSpacing: '0.05em', justifySelf: 'start',
-                            }}>
-                              {tm.label}
-                            </span>
-
-                            {/* Score dot + value */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                              <div style={{ width: 5, height: 5, borderRadius: '50%', background: score.color, flexShrink: 0 }} />
-                              <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 11, color: score.color }}>
-                                {sim.toFixed(2)}
-                              </span>
-                            </div>
-
-                            {/* Title */}
-                            <span style={{
-                              fontFamily: 'var(--font-inter)', fontSize: 13,
-                              color: isSelected ? 'var(--text-primary)' : 'var(--text-secondary)',
-                              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                              paddingLeft: 10,
-                            }}>
-                              {highlight(r.title, lastQuery.current)}
-                            </span>
-
-                            {/* ExternalLink — visible on selected or row hover */}
-                            <button
-                              onClick={e => { e.stopPropagation(); onNavigateTo?.(SECTION_INDEX.ENTRIES, r.id) }}
-                              style={{
-                                background: 'none', border: 'none', cursor: 'pointer',
-                                color: 'var(--text-muted)', padding: 4, borderRadius: 4,
-                                opacity: isSelected ? 1 : 0,
-                                transition: 'opacity 0.15s, color 0.15s', justifySelf: 'end',
-                              }}
-                              className="row-link-btn"
-                              onMouseEnter={e => (e.currentTarget.style.color = 'var(--accent)')}
-                              onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
-                            >
-                              <ExternalLink size={11} />
-                            </button>
-                          </motion.div>
-                        )
-                      })}
-                    </motion.div>
-                  )}
+              {/* MIDDLE — Results list */}
+              <div style={{ flex: 1, minWidth: 0, overflowY: 'auto', borderRight: '1px solid var(--border)' }}>
+                {/* Sticky list header */}
+                <div style={{
+                  padding: '8px 16px',
+                  borderBottom: '1px solid var(--border)',
+                  position: 'sticky',
+                  top: 0,
+                  background: 'var(--surface-1)',
+                  zIndex: 1,
+                }}>
+                  <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                    {filtered.length} RESULTS
+                  </span>
                 </div>
 
-                {/* Detail panel */}
-                <AnimatePresence>
-                  {selected && (
+                {/* Empty state */}
+                {searched && filtered.length === 0 && !loading && (
+                  <div style={{ padding: '60px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 12, color: 'var(--text-muted)' }}>No results found</span>
+                    <span style={{ fontFamily: 'var(--font-inter)', fontSize: 12, color: 'var(--text-muted)' }}>Try lowering the threshold or rephrasing your query</span>
+                  </div>
+                )}
+
+                {/* Result rows */}
+                {filtered.map((r, i) => {
+                  const tm = TYPE_META[r.type] ?? { color: '#71717A', label: r.type.toUpperCase() }
+                  const sim = r.similarity ?? 0
+                  const sl = scoreLabel(sim)
+                  const isSelected = selected?.id === r.id
+                  return (
                     <motion.div
-                      initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}
-                      transition={{ duration: 0.2 }}
-                      style={{ flex: 1, minWidth: 0, overflowY: 'auto', background: 'var(--surface-2)', padding: '22px 24px' }}
+                      key={r.id}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: i < 5 ? i * 0.03 : 0.15 }}
+                      onClick={() => setSelected(isSelected ? null : r)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 12,
+                        padding: '10px 16px',
+                        borderBottom: '1px solid var(--border)',
+                        cursor: 'pointer',
+                        background: isSelected ? 'var(--surface-2)' : 'transparent',
+                        borderLeft: isSelected ? '2px solid var(--accent)' : '2px solid transparent',
+                        paddingLeft: isSelected ? 14 : 16,
+                        transition: 'background 0.12s',
+                      }}
+                      onMouseEnter={e => { if (!isSelected) (e.currentTarget as HTMLDivElement).style.background = 'var(--surface-2)' }}
+                      onMouseLeave={e => { if (!isSelected) (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}
                     >
-                      {/* Actions row */}
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
-                        <button
-                          onClick={() => onNavigateTo?.(SECTION_INDEX.ENTRIES, selected.id)}
-                          style={{
-                            display: 'flex', alignItems: 'center', gap: 5,
-                            background: 'none', border: '1px solid var(--border)',
-                            borderRadius: 6, padding: '5px 10px', cursor: 'pointer',
-                            color: 'var(--text-muted)', fontFamily: 'var(--font-inter)', fontSize: 11,
-                            transition: 'color 0.15s, border-color 0.15s',
-                          }}
-                          onMouseEnter={e => { e.currentTarget.style.color = 'var(--accent)'; e.currentTarget.style.borderColor = 'var(--accent)' }}
-                          onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border)' }}
-                        >
-                          <ExternalLink size={10} /> Open in Memory
-                        </button>
-                        <button
-                          onClick={() => setSelected(null)}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 4 }}
-                        >
-                          <X size={14} />
-                        </button>
+                      {/* Type badge */}
+                      <div style={{ width: 64, flexShrink: 0 }}>
+                        <span style={{
+                          background: `${tm.color}1F`,
+                          color: tm.color,
+                          borderRadius: 2,
+                          padding: '2px 6px',
+                          fontFamily: 'var(--font-jetbrains-mono)',
+                          fontSize: 9,
+                          fontWeight: 700,
+                          letterSpacing: '0.1em',
+                        }}>
+                          {tm.label}
+                        </span>
                       </div>
 
-                      {/* Type + score */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-                        {(() => {
-                          const tm = TYPE_META[selected.type] ?? { color: '#71717A', label: selected.type }
-                          return (
-                            <span style={{
-                              fontFamily: 'var(--font-jetbrains-mono)', fontSize: 10, fontWeight: 700,
-                              color: tm.color, background: `${tm.color}18`,
-                              border: `1px solid ${tm.color}35`,
-                              borderRadius: 3, padding: '3px 7px', letterSpacing: '0.05em',
-                            }}>
-                              {tm.label}
-                            </span>
-                          )
-                        })()}
-                        {selected.similarity !== undefined && (
-                          <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 11, color: 'var(--text-muted)' }}>
-                            {(selected.similarity * 100).toFixed(1)}% match
+                      {/* Score bar */}
+                      <div style={{ width: 36, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                        <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 10, color: sl.color, lineHeight: 1 }}>
+                          {sim.toFixed(2)}
+                        </span>
+                        <div style={{ width: 24, height: 2, background: 'var(--border)', borderRadius: 1, overflow: 'hidden' }}>
+                          <div style={{ height: 2, width: `${(sim * 100).toFixed(0)}%`, background: sl.color }} />
+                        </div>
+                      </div>
+
+                      {/* Title + project */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{
+                          fontFamily: 'var(--font-inter)',
+                          fontSize: 13,
+                          fontWeight: 500,
+                          color: 'var(--text-primary)',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        }}>
+                          {highlight(r.title, lastQuery.current)}
+                        </div>
+                        {r.project?.name && (
+                          <span style={{
+                            display: 'block',
+                            fontFamily: 'var(--font-jetbrains-mono)',
+                            fontSize: 10,
+                            color: 'var(--text-muted)',
+                          }}>
+                            {r.project.name}
                           </span>
                         )}
                       </div>
 
-                      {/* Title */}
-                      <h2 style={{
-                        fontFamily: 'var(--font-space-grotesk)', fontSize: 18, fontWeight: 600,
-                        color: 'var(--text-primary)', margin: '0 0 16px', lineHeight: 1.4, letterSpacing: '-0.01em',
-                      }}>
-                        {selected.title}
-                      </h2>
+                      {/* Date */}
+                      <div style={{ width: 56, flexShrink: 0, textAlign: 'right' }}>
+                        <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 10, color: 'var(--text-muted)' }}>
+                          {relativeDate(r.created_at)}
+                        </span>
+                      </div>
 
-                      {/* Content */}
-                      {selected.content && (
-                        <div style={{
-                          fontFamily: 'var(--font-inter)', fontSize: 13,
-                          color: 'var(--text-secondary)', lineHeight: 1.75,
-                          whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-                          borderLeft: '3px solid var(--accent)',
-                          background: 'var(--surface-3)',
-                          borderRadius: '0 6px 6px 0',
-                          padding: '12px 16px',
-                        }}>
-                          {selected.content}
-                        </div>
-                      )}
+                      {/* External link */}
+                      <div style={{ width: 20, flexShrink: 0 }}>
+                        <button
+                          onClick={e => { e.stopPropagation(); onNavigateTo?.(SECTION_INDEX.ENTRIES, r.id) }}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            color: 'var(--text-muted)',
+                            padding: 2,
+                            opacity: 0.4,
+                            transition: 'opacity 0.15s, color 0.15s',
+                            display: 'flex',
+                            alignItems: 'center',
+                          }}
+                          onMouseEnter={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.color = 'var(--accent)' }}
+                          onMouseLeave={e => { e.currentTarget.style.opacity = '0.4'; e.currentTarget.style.color = 'var(--text-muted)' }}
+                        >
+                          <ExternalLink size={11} />
+                        </button>
+                      </div>
+                    </motion.div>
+                  )
+                })}
+              </div>
 
-                      {/* Metadata */}
-                      <div style={{ marginTop: 22, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                        {([
-                          ['STATUS', selected.status],
-                          ['DATE',   new Date(selected.created_at).toLocaleDateString('pt-PT', { day: '2-digit', month: 'long', year: 'numeric' })],
-                        ] as [string, string | null | undefined][]).map(([k, v]) => v && (
-                          <div key={k} style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                            <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 10, color: 'var(--text-muted)', minWidth: 52, letterSpacing: '0.06em' }}>{k}</span>
-                            <span style={{ fontFamily: 'var(--font-inter)', fontSize: 12, color: 'var(--text-secondary)' }}>{v}</span>
-                          </div>
-                        ))}
-                        {selected.tags && selected.tags.length > 0 && (
-                          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                            <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 10, color: 'var(--text-muted)', minWidth: 52, letterSpacing: '0.06em', paddingTop: 3 }}>TAGS</span>
-                            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                              {selected.tags.map(t => (
-                                <span key={t} style={{
-                                  fontFamily: 'var(--font-inter)', fontSize: 11,
-                                  padding: '2px 8px', borderRadius: 20,
-                                  background: 'var(--surface-3)', border: '1px solid var(--border)',
+              {/* RIGHT — Detail panel */}
+              <div style={{ width: 320, flexShrink: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                <AnimatePresence mode="wait">
+                  {!selected ? (
+                    <motion.div
+                      key="empty-detail"
+                      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}
+                    >
+                      <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 11, color: 'var(--text-muted)' }}>
+                        ← select an entry
+                      </span>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key={selected.id}
+                      initial={{ opacity: 0, x: 0 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }}
+                      transition={{ duration: 0.15 }}
+                      style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}
+                    >
+                      {/* Topbar */}
+                      {(() => {
+                        const tm = TYPE_META[selected.type] ?? { color: '#71717A', label: selected.type.toUpperCase() }
+                        return (
+                          <div style={{
+                            padding: '12px 16px',
+                            borderBottom: '1px solid var(--border)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            justifyContent: 'space-between',
+                            flexShrink: 0,
+                          }}>
+                            <span style={{
+                              background: `${tm.color}1F`,
+                              color: tm.color,
+                              borderRadius: 2,
+                              padding: '2px 6px',
+                              fontFamily: 'var(--font-jetbrains-mono)',
+                              fontSize: 9,
+                              fontWeight: 700,
+                              letterSpacing: '0.1em',
+                            }}>
+                              {tm.label}
+                            </span>
+                            {selected.similarity !== undefined && (
+                              <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 11, color: 'var(--accent)', flex: 1, paddingLeft: 4 }}>
+                                {(selected.similarity * 100).toFixed(1)}% match
+                              </span>
+                            )}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <button
+                                onClick={() => onNavigateTo?.(SECTION_INDEX.ENTRIES, selected.id)}
+                                style={{
+                                  display: 'flex', alignItems: 'center', gap: 4,
+                                  background: 'none',
+                                  border: '1px solid var(--border)',
+                                  borderRadius: 0,
+                                  padding: '4px 8px',
+                                  cursor: 'pointer',
                                   color: 'var(--text-muted)',
-                                }}>
-                                  {t}
-                                </span>
-                              ))}
+                                  fontFamily: 'var(--font-jetbrains-mono)',
+                                  fontSize: 11,
+                                  transition: 'color 0.15s, border-color 0.15s',
+                                }}
+                                onMouseEnter={e => { e.currentTarget.style.color = 'var(--accent)'; e.currentTarget.style.borderColor = 'var(--accent)' }}
+                                onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border)' }}
+                              >
+                                <ExternalLink size={10} /> Open
+                              </button>
+                              <button
+                                onClick={() => setSelected(null)}
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 4 }}
+                              >
+                                <X size={14} />
+                              </button>
                             </div>
+                          </div>
+                        )
+                      })()}
+
+                      {/* Scrollable body */}
+                      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, padding: '20px 16px' }}>
+                        {/* Title */}
+                        <h2 style={{
+                          fontFamily: 'var(--font-space-grotesk)',
+                          fontSize: 20,
+                          fontWeight: 600,
+                          color: 'var(--text-primary)',
+                          lineHeight: 1.25,
+                          marginBottom: 16,
+                          margin: '0 0 16px',
+                        }}>
+                          {selected.title}
+                        </h2>
+
+                        {/* Metadata strip */}
+                        <div style={{
+                          display: 'flex',
+                          flexDirection: 'row',
+                          gap: 16,
+                          paddingBottom: 16,
+                          borderBottom: '1px solid var(--border)',
+                          marginBottom: 20,
+                          flexWrap: 'wrap',
+                        }}>
+                          {selected.project?.name && (
+                            <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                              {selected.project.name}
+                            </span>
+                          )}
+                          <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                            {new Date(selected.created_at).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </span>
+                          {selected.status && (
+                            <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                              {selected.status.replace('_', ' ')}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Content */}
+                        {selected.content && (
+                          <p style={{
+                            fontFamily: 'var(--font-inter)',
+                            fontSize: 13,
+                            lineHeight: 1.7,
+                            color: 'var(--text-secondary)',
+                            margin: 0,
+                            whiteSpace: 'pre-wrap',
+                            wordBreak: 'break-word',
+                          }}>
+                            {selected.content}
+                          </p>
+                        )}
+
+                        {/* Tags */}
+                        {selected.tags && selected.tags.length > 0 && (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 20 }}>
+                            {selected.tags.map(t => (
+                              <span key={t} style={{
+                                fontFamily: 'var(--font-jetbrains-mono)',
+                                fontSize: 10,
+                                padding: '3px 8px',
+                                border: '1px solid var(--border)',
+                                borderRadius: 2,
+                                color: 'var(--text-muted)',
+                              }}>
+                                {t}
+                              </span>
+                            ))}
                           </div>
                         )}
                       </div>

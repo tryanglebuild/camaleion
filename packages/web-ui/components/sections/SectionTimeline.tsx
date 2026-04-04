@@ -166,7 +166,7 @@ export function SectionTimeline({ direction, onNavigateTo }: SectionProps) {
             <p className="empty-state-hint">Entries will appear here as you create them</p>
           </div>
         ) : (
-          <div style={{ maxWidth: 720 }}>
+          <div>
             {grouped.map((group, gi) => (
               <motion.div
                 key={group.label}

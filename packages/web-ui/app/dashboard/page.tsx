@@ -16,6 +16,7 @@ import { SectionGenerate } from '@/components/sections/SectionGenerate'
 import { SectionGraph }    from '@/components/sections/SectionGraph'
 import { SectionSettings }  from '@/components/sections/SectionSettings'
 import { SectionTimeline }  from '@/components/sections/SectionTimeline'
+import { SectionAgents }   from '@/components/sections/SectionAgents'
 import { AddEntryModal } from '@/components/dashboard/AddEntryModal'
 import { CommandPalette } from '@/components/dashboard/CommandPalette'
 
@@ -34,6 +35,7 @@ const SECTIONS = [
   SectionGraph,
   SectionSettings,
   SectionTimeline,
+  SectionAgents,
 ]
 
 export default function DashboardPage() {

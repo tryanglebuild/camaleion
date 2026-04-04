@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard, Database, Search, FolderOpen, Users,
   CheckSquare, ShieldCheck, BarChart2, ListChecks, Sparkles,
-  Network, Building2, Sun, Moon, ChevronLeft, ChevronRight, Settings, GitCommitVertical,
+  Network, Building2, Sun, Moon, ChevronLeft, ChevronRight, Settings, GitCommitVertical, Bot,
 } from 'lucide-react'
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
@@ -90,6 +90,7 @@ const NAV_GROUPS = [
       { icon: Network,            label: 'Graph',    index: 11, countKey: null },
       { icon: Settings,           label: 'Settings', index: 12, countKey: null },
       { icon: GitCommitVertical,  label: 'Timeline', index: 13, countKey: null },
+      { icon: Bot,                label: 'Agents',   index: 14, countKey: null },
     ],
   },
 ]

@@ -8,6 +8,8 @@ import { registerRulesTools } from './tools/rules.js'
 import { registerAnalysisTools } from './tools/analysis.js'
 import { registerPlanningTools } from './tools/planning.js'
 import { registerGenerationTools } from './tools/generation.js'
+import { registerAgentTools } from './tools/agents.js'
+import { startWatcher } from './lib/watcher.js'
 
 const server = new McpServer({
   name: 'context-engine',
@@ -41,6 +43,10 @@ registerRulesTools(server)
 registerAnalysisTools(server)
 registerPlanningTools(server)
 registerGenerationTools(server)
+registerAgentTools(server)
 
 const transport = new StdioServerTransport()
 await server.connect(transport)
+
+// Start file watcher for conversation.jsonl → DB sync
+startWatcher()
