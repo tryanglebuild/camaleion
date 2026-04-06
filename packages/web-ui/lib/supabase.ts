@@ -17,6 +17,33 @@ export function saveClientConfig(cfg: ClientConfig) {
   localStorage.setItem(CONFIG_KEY, JSON.stringify(cfg))
 }
 
+/**
+ * Fetches config from the server API and syncs it to localStorage + reloads
+ * the Supabase client. Call this once on app mount to recover from empty localStorage.
+ */
+export async function syncConfigFromServer(): Promise<void> {
+  try {
+    const res = await fetch('/api/config')
+    if (!res.ok) return
+    const data = await res.json() as { supabaseUrl?: string; supabaseAnonKey?: string }
+    const url = data.supabaseUrl ?? ''
+    // The API masks the anon key — only update if we got a real (unmasked) value
+    const key = data.supabaseAnonKey?.endsWith('…') ? '' : (data.supabaseAnonKey ?? '')
+    if (!url) return
+    const existing = getClientConfig()
+    // Preserve the full key from localStorage if server returned a masked one
+    const anonKey = key || existing.supabaseAnonKey
+    if (url !== existing.supabaseUrl || (anonKey && anonKey !== existing.supabaseAnonKey)) {
+      saveClientConfig({ supabaseUrl: url, supabaseAnonKey: anonKey })
+      reloadSupabase()
+    } else if (!existing.supabaseUrl && url) {
+      // localStorage was empty — seed it with the URL at least so client can init
+      saveClientConfig({ supabaseUrl: url, supabaseAnonKey: anonKey })
+      reloadSupabase()
+    }
+  } catch { /* ignore network errors */ }
+}
+
 function makeClient(): SupabaseClient {
   const { supabaseUrl, supabaseAnonKey } = getClientConfig()
   if (!supabaseUrl || !supabaseAnonKey) {
