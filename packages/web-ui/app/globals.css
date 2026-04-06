@@ -77,6 +77,11 @@
 
   /* ── Nav ─────────────────────────────────── */
   --nav-width: 220px;
+
+  /* ── Chat accent ───────────────────────────────── */
+  --chat-amber:        #B45309;
+  --chat-amber-glow:   rgba(180,83,9,0.07);
+  --chat-amber-border: rgba(180,83,9,0.18);
 }
 
 /* ── Dark theme override — Claude stone-900 warm charcoal ────────── */

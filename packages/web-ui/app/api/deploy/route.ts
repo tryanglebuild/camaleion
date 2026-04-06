@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import fs from 'fs'
 import path from 'path'
-import { execSync } from 'child_process'
 import { getConfig } from '@/lib/config.server'
 
 const MGMT = 'https://api.supabase.com/v1'
@@ -15,34 +14,66 @@ function getRef(supabaseUrl: string): string | null {
 type StepStatus = 'ok' | 'error' | 'skipped'
 interface Step { name: string; status: StepStatus; message?: string }
 
+// ── Secrets ───────────────────────────────────────────────────────────────────
 async function setSecret(ref: string, pat: string, name: string, value: string): Promise<Step> {
   const res = await fetch(`${MGMT}/projects/${ref}/secrets`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${pat}`, 'Content-Type': 'application/json' },
     body: JSON.stringify([{ name, value }]),
   })
-  if (!res.ok) {
-    const txt = await res.text()
-    return { name: `Secret: ${name}`, status: 'error', message: txt }
-  }
+  if (!res.ok) return { name: `Secret: ${name}`, status: 'error', message: await res.text() }
   return { name: `Secret: ${name}`, status: 'ok' }
 }
 
-async function deployFunction(_ref: string, pat: string, slug: string): Promise<Step> {
-  try {
-    execSync(`supabase functions deploy ${slug} --use-api`, {
-      cwd: REPO_ROOT,
-      env: { ...process.env, SUPABASE_ACCESS_TOKEN: pat },
-      stdio: 'pipe',
-    })
-    return { name: `Function: ${slug}`, status: 'ok' }
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : String(e)
-    return { name: `Function: ${slug}`, status: 'error', message: msg.slice(0, 300) }
+// ── Edge function deploy — pure Management API, no CLI ────────────────────────
+// POST /v1/projects/{ref}/functions/deploy?slug={slug}
+// slug is a QUERY PARAMETER — this is the upsert key (creates or updates)
+// Body: multipart/form-data with `file` (TS source) + `metadata` (JSON config)
+// Do NOT set Content-Type manually — fetch must set the multipart boundary
+async function deployFunction(ref: string, pat: string, slug: string, srcPath: string): Promise<Step> {
+  const src = fs.readFileSync(srcPath, 'utf-8')
+
+  const form = new FormData()
+  form.append('metadata', JSON.stringify({ entrypoint_path: 'index.ts', verify_jwt: false }))
+  form.append('file', new Blob([src], { type: 'application/typescript' }), 'index.ts')
+
+  const res = await fetch(`${MGMT}/projects/${ref}/functions/deploy?slug=${slug}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${pat}` },
+    body: form,
+  })
+  if (!res.ok) {
+    return { name: `Function: ${slug}`, status: 'error', message: (await res.text()).slice(0, 400) }
   }
+  return { name: `Function: ${slug}`, status: 'ok' }
 }
 
+// ── DB query — pure Management API, no CLI ────────────────────────────────────
+// POST /v1/projects/{ref}/database/query
+// Body: { query: "<sql>" }
+async function runSQL(ref: string, pat: string, sql: string, label: string): Promise<Step> {
+  // Strip psql meta-commands (\i, \set, etc.) which the API doesn't support
+  const cleaned = sql
+    .split('\n')
+    .filter(l => !l.trimStart().startsWith('\\'))
+    .join('\n')
+    .trim()
 
+  if (!cleaned) return { name: label, status: 'skipped', message: 'Empty after stripping psql commands' }
+
+  const res = await fetch(`${MGMT}/projects/${ref}/database/query`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${pat}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query: cleaned }),
+  })
+  if (!res.ok) {
+    const txt = await res.text()
+    return { name: label, status: 'error', message: txt.slice(0, 400) }
+  }
+  return { name: label, status: 'ok' }
+}
+
+// ── Handler ───────────────────────────────────────────────────────────────────
 export async function POST() {
   const config = getConfig()
   const { supabaseUrl, supabaseServiceKey, supabaseAccessToken, openrouterKey } = config
@@ -61,36 +92,43 @@ export async function POST() {
 
   const steps: Step[] = []
 
-  // 1. Set OpenRouter secret (only if key provided)
+  // ── 1. Set secrets ──────────────────────────────────────────────────────────
   if (openrouterKey) {
     steps.push(await setSecret(ref, supabaseAccessToken, 'OPENROUTER_API_KEY', openrouterKey))
   } else {
     steps.push({ name: 'Secret: OPENROUTER_API_KEY', status: 'skipped', message: 'No key provided' })
   }
 
-  // 2. Deploy edge functions
+  // ── 2. Deploy edge functions ────────────────────────────────────────────────
   const functionsDir = path.join(REPO_ROOT, 'supabase', 'functions')
-  const functionSlugs = ['embed', 'rag-answer']
+  const functionSlugs = ['embed', 'rag-answer', 'chat']
   for (const slug of functionSlugs) {
     const srcPath = path.join(functionsDir, slug, 'index.ts')
     if (!fs.existsSync(srcPath)) {
       steps.push({ name: `Function: ${slug}`, status: 'error', message: 'Source file not found' })
       continue
     }
-    steps.push(await deployFunction(ref, supabaseAccessToken, slug))
+    steps.push(await deployFunction(ref, supabaseAccessToken, slug, srcPath))
   }
 
-  // 3. Apply migrations via CLI (tracks applied migrations automatically)
-  try {
-    execSync('supabase db push --use-api', {
-      cwd: REPO_ROOT,
-      env: { ...process.env, SUPABASE_ACCESS_TOKEN: supabaseAccessToken },
-      stdio: 'pipe',
-    })
-    steps.push({ name: 'Migrations', status: 'ok' })
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : String(e)
-    steps.push({ name: 'Migrations', status: 'error', message: msg.slice(0, 300) })
+  // ── 3. Apply DB schema + migrations ────────────────────────────────────────
+  // Run schema.sql first (CREATE TABLE IF NOT EXISTS — idempotent)
+  const schemaPath = path.join(REPO_ROOT, 'db', 'schema.sql')
+  if (fs.existsSync(schemaPath)) {
+    steps.push(await runSQL(ref, supabaseAccessToken, fs.readFileSync(schemaPath, 'utf-8'), 'Schema'))
+  }
+
+  // Run migration files in order (skip 001 — it just references schema.sql via \i)
+  const migrationsDir = path.join(REPO_ROOT, 'db', 'migrations')
+  if (fs.existsSync(migrationsDir)) {
+    const files = fs.readdirSync(migrationsDir)
+      .filter(f => f.endsWith('.sql') && !f.startsWith('001'))
+      .sort()
+
+    for (const file of files) {
+      const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf-8')
+      steps.push(await runSQL(ref, supabaseAccessToken, sql, `Migration: ${file}`))
+    }
   }
 
   const hasError = steps.some(s => s.status === 'error')

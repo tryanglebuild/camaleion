@@ -1,7 +1,7 @@
 'use client'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useState, useEffect, useRef } from 'react'
-import { Search, LayoutDashboard, Database, SearchIcon, FolderOpen, Building2, Users, CheckSquare, Shield, BarChart2, Map, FileText, Network, Settings, GitCommitVertical } from 'lucide-react'
+import { Search, LayoutDashboard, Database, SearchIcon, FolderOpen, Building2, Users, CheckSquare, Shield, BarChart2, Map, FileText, Network, Settings, GitCommitVertical, Bot, MessageSquare } from 'lucide-react'
 
 export const PALETTE_SECTIONS = [
   { label: 'Dashboard',  icon: LayoutDashboard, index: 0 },
@@ -18,6 +18,8 @@ export const PALETTE_SECTIONS = [
   { label: 'Graph',      icon: Network,          index: 11 },
   { label: 'Settings',   icon: Settings,          index: 12 },
   { label: 'Timeline',   icon: GitCommitVertical, index: 13 },
+  { label: 'Agents',     icon: Bot,               index: 14 },
+  { label: 'Chat',       icon: MessageSquare,     index: 15 },
 ]
 
 interface Props {
