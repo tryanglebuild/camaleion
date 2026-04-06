@@ -16,19 +16,54 @@ interface ToolCall {
   params: Record<string, unknown>
   status: 'running' | 'done' | 'error'
   result?: string
-  collapsed?: boolean
+  executionTimeMs?: number
 }
 
 interface ChatMessage {
   id: string
   role: 'user' | 'assistant'
   content: string
-  toolCalls?: ToolCall[]
+  toolCallPhase: ToolCall[]
   timestamp: Date
   isStreaming?: boolean
+  isInToolPhase: boolean
+}
+
+interface ChatSession {
+  id: string
+  title: string
+  created_at: string
+  updated_at: string
+  last_message_at: string | null
+  message_count: number
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+function tryPrettyJson(str: string | undefined): string {
+  if (!str) return ''
+  try {
+    return JSON.stringify(JSON.parse(str), null, 2)
+  } catch {
+    return str
+  }
+}
+
+function buildToolSummary(toolCall: ToolCall): string {
+  const entries = Object.entries(toolCall.params)
+  if (entries.length === 0) return `${toolCall.name}()`
+
+  const preferred = entries.find(([k]) =>
+    /query|search|id|name|title|key|text|content/i.test(k)
+  ) ?? entries[0]
+
+  const [key, val] = preferred
+  const valStr = typeof val === 'string'
+    ? val.slice(0, 30)
+    : JSON.stringify(val).slice(0, 30)
+
+  return `${toolCall.name}(${key}: '${valStr}')`
+}
 
 function formatTime(d: Date): string {
   return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -106,8 +141,7 @@ const mdComponents: Record<string, React.ComponentType<any>> = {
 
 // ── ToolCallCard ──────────────────────────────────────────────────────────────
 
-function ToolCallCard({ toolCall, onToggle }: { toolCall: ToolCall; onToggle: () => void }) {
-  const collapsed = toolCall.collapsed !== false // default collapsed when done
+function ToolCallCard({ toolCall, isCollapsed, onToggle }: { toolCall: ToolCall; isCollapsed: boolean; onToggle: () => void }) {
   const isRunning = toolCall.status === 'running'
 
   const statusEl = isRunning
@@ -116,7 +150,7 @@ function ToolCallCard({ toolCall, onToggle }: { toolCall: ToolCall; onToggle: ()
     ? <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 10, color: 'var(--status-done)' }}>✓ EXECUTED</span>
     : <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 10, color: 'var(--status-blocked)' }}>✗ FAILED</span>
 
-  const paramEntries = Object.entries(toolCall.params).slice(0, 3)
+  const paramEntries = Object.entries(toolCall.params)
 
   return (
     <motion.div
@@ -146,31 +180,74 @@ function ToolCallCard({ toolCall, onToggle }: { toolCall: ToolCall; onToggle: ()
           userSelect: 'none',
         }}
       >
-        {collapsed
+        {isCollapsed
           ? <ChevronRight size={10} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
           : <ChevronDown size={10} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
         }
-        <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 11, color: 'var(--chat-amber)', textTransform: 'uppercase', flex: 1 }}>
-          {toolCall.name}
+        <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 11, color: 'var(--chat-amber)', textTransform: 'uppercase', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {buildToolSummary(toolCall)}
         </span>
         {statusEl}
+        {toolCall.executionTimeMs !== undefined && (
+          <span style={{
+            fontFamily: 'var(--font-jetbrains-mono)',
+            fontSize: 10,
+            color: '#F59E0B',
+            opacity: 0.8,
+          }}>
+            {toolCall.executionTimeMs}ms
+          </span>
+        )}
       </div>
 
       {/* Expanded content */}
-      {!collapsed && (
+      {!isCollapsed && (
         <div style={{ padding: '0 10px 10px 10px' }}>
           {paramEntries.length > 0 && (
             <div style={{ marginBottom: toolCall.result ? 6 : 0 }}>
               {paramEntries.map(([k, v]) => (
-                <div key={k} style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 11, color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  <span style={{ color: 'var(--text-muted)' }}>{k}:</span> {String(v).slice(0, 80)}
+                <div key={k} style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 11, color: 'var(--text-secondary)', marginBottom: 2 }}>
+                  {typeof v === 'object' && v !== null ? (
+                    <>
+                      <span style={{ color: 'var(--text-muted)' }}>{k}:</span>
+                      <code style={{
+                        background: 'var(--surface-3)',
+                        padding: '4px 6px',
+                        display: 'block',
+                        marginTop: 2,
+                        whiteSpace: 'pre-wrap',
+                        maxHeight: 120,
+                        overflowY: 'auto',
+                        fontFamily: 'var(--font-jetbrains-mono)',
+                        fontSize: 11,
+                        color: 'var(--text-secondary)',
+                      }}>
+                        {JSON.stringify(v, null, 2)}
+                      </code>
+                    </>
+                  ) : (
+                    <>
+                      <span style={{ color: 'var(--text-muted)' }}>{k}:</span> {String(v)}
+                    </>
+                  )}
                 </div>
               ))}
             </div>
           )}
           {toolCall.result && (
-            <div style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 11, color: 'var(--text-secondary)', marginTop: 4, whiteSpace: 'pre-wrap', maxHeight: 80, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {toolCall.result.slice(0, 200)}{toolCall.result.length > 200 ? '…' : ''}
+            <div style={{
+              maxHeight: 384,
+              overflowY: 'auto',
+              fontFamily: 'var(--font-jetbrains-mono)',
+              fontSize: 11,
+              color: 'var(--text-secondary)',
+              marginTop: 6,
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+              scrollbarWidth: 'thin',
+              scrollbarColor: 'var(--border) transparent',
+            }}>
+              {tryPrettyJson(toolCall.result)}
             </div>
           )}
         </div>
@@ -245,7 +322,7 @@ function UserMessage({ message }: { message: ChatMessage }) {
 
 // ── AiMessage ─────────────────────────────────────────────────────────────────
 
-function AiMessage({ message, onToggleTool }: { message: ChatMessage; onToggleTool: (msgId: string, toolId: string) => void }) {
+function AiMessage({ message, collapsedTools, onToggleTool }: { message: ChatMessage; collapsedTools: Set<string>; onToggleTool: (msgId: string, toolId: string) => void }) {
   return (
     <motion.div
       layout
@@ -253,110 +330,185 @@ function AiMessage({ message, onToggleTool }: { message: ChatMessage; onToggleTo
       animate={{ x: 0, opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-      style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}
+      style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: '100%' }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
         <span className="module-label" style={{ color: 'var(--chat-amber)' }}>CE</span>
         <span className="module-label" style={{ color: 'var(--text-muted)' }}>{formatTime(message.timestamp)}</span>
       </div>
-      <div style={{
-        background: 'var(--surface-1)',
-        border: '1px solid var(--border)',
-        borderLeft: '2px solid var(--chat-amber)',
-        borderRadius: '0 2px 2px 0',
-        padding: '10px 14px',
-        width: '100%',
-        boxSizing: 'border-box',
-      }}>
-        {/* Tool calls rendered before text content */}
-        {message.toolCalls && message.toolCalls.length > 0 && (
-          <div style={{ marginBottom: 8 }}>
-            {message.toolCalls.map(tc => (
+
+      {/* Tools zone — rendered before the text bubble */}
+      {message.toolCallPhase.length > 0 && (
+        <div style={{
+          borderLeft: '2px solid rgba(245,158,11,0.35)',
+          paddingLeft: 12,
+          marginBottom: message.content ? 10 : 0,
+          width: '100%',
+          boxSizing: 'border-box',
+        }}>
+          <div style={{
+            fontFamily: 'var(--font-jetbrains-mono)',
+            fontSize: 9,
+            color: 'rgba(245,158,11,0.6)',
+            letterSpacing: '0.12em',
+            textTransform: 'uppercase',
+            marginBottom: 6,
+          }}>
+            TOOLS EXECUTED
+          </div>
+          {message.toolCallPhase.map((tc) => (
+            <motion.div
+              key={tc.id}
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.15, ease: [0.22, 1, 0.36, 1] }}
+            >
               <ToolCallCard
-                key={tc.id}
                 toolCall={tc}
+                isCollapsed={collapsedTools.has(tc.id)}
                 onToggle={() => onToggleTool(message.id, tc.id)}
               />
-            ))}
-          </div>
-        )}
+            </motion.div>
+          ))}
+        </div>
+      )}
 
-        {/* Text content */}
-        {message.content && (
+      {/* Text bubble — only when content exists or tool phase is complete */}
+      {(!message.isInToolPhase || message.content) && (
+        <div style={{
+          background: 'var(--surface-1)',
+          border: '1px solid var(--border)',
+          borderLeft: '2px solid var(--chat-amber)',
+          borderRadius: '0 2px 2px 0',
+          padding: '10px 14px',
+          width: '100%',
+          boxSizing: 'border-box',
+        }}>
           <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
             {message.content}
           </ReactMarkdown>
-        )}
-      </div>
+        </div>
+      )}
     </motion.div>
   )
 }
 
-// ── EmptyState ────────────────────────────────────────────────────────────────
+// ── BootSequence ──────────────────────────────────────────────────────────────
 
-const QUICK_CHIPS = [
-  { type: 'DECISION', text: 'Add a decision',                typeVar: '--type-decision' },
-  { type: 'TASK',     text: 'Add a task',                    typeVar: '--type-task' },
-  { type: 'QUERY',    text: 'What did I work on this week?', typeVar: '--type-note' },
-  { type: 'FIND',     text: 'Find recent entries',           typeVar: '--accent' },
-  { type: 'PEOPLE',   text: 'List all people',               typeVar: '--people-rose' },
-  { type: 'LOG',      text: 'Log something',                 typeVar: '--type-log' },
-]
+function BootSequence({ onCommand }: { onCommand: (cmd: string) => void }) {
+  const lines = [
+    '> CONTEXT ENGINE v2.1 — INITIALIZING',
+    '> memory index loaded',
+    '> agent registry online',
+    '> tools registered: 12',
+    '> ready for input',
+  ]
+  const [visibleLines, setVisibleLines] = useState<number>(0)
+  const [showPrompts, setShowPrompts] = useState(false)
 
-function EmptyState({ onChipClick }: { onChipClick: (text: string) => void }) {
+  useEffect(() => {
+    let i = 0
+    const interval = setInterval(() => {
+      i++
+      setVisibleLines(i)
+      if (i >= lines.length) {
+        clearInterval(interval)
+        setTimeout(() => setShowPrompts(true), 200)
+      }
+    }, 80)
+    return () => clearInterval(interval)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 'calc(40% - 80px)', gap: 20 }}>
-      <div style={{ textAlign: 'center' }}>
-        <div style={{ fontFamily: 'var(--font-space-grotesk)', fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 6 }}>
-          CE.CHAT
+    <div style={{ padding: '40px 24px', fontFamily: 'var(--font-jetbrains-mono)' }}>
+      {lines.slice(0, visibleLines).map((line, i) => (
+        <div key={i} style={{ fontSize: 12, color: i === 0 ? 'var(--chat-amber)' : 'var(--text-muted)', marginBottom: 6, letterSpacing: '0.02em' }}>
+          {line}
         </div>
-        <div style={{ fontFamily: 'var(--font-space-grotesk)', fontSize: 12, color: 'var(--text-muted)' }}>
-          Operate your knowledge system in natural language.
+      ))}
+      {showPrompts && (
+        <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {[
+            { cmd: 'search memory', label: '> search memory' },
+            { cmd: 'show recent projects', label: '> show recent projects' },
+            { cmd: 'list active tasks', label: '> list active tasks' },
+          ].map(({ cmd, label }) => (
+            <button
+              key={cmd}
+              onClick={() => onCommand(cmd)}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                padding: '6px 0',
+                textAlign: 'left',
+                cursor: 'pointer',
+                fontFamily: 'var(--font-jetbrains-mono)',
+                fontSize: 12,
+                color: 'var(--chat-amber)',
+                opacity: 0.7,
+                borderRadius: 0,
+              }}
+              onMouseEnter={e => { (e.target as HTMLElement).style.opacity = '1' }}
+              onMouseLeave={e => { (e.target as HTMLElement).style.opacity = '0.7' }}
+            >
+              {label}
+            </button>
+          ))}
         </div>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: 6, width: '100%', maxWidth: 400 }}>
-        {QUICK_CHIPS.map((chip, i) => (
-          <motion.button
-            key={chip.type}
-            initial={{ y: 8, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: i * 0.04, duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-            onClick={() => onChipClick(chip.text)}
-            style={{
-              display: 'flex',
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 8,
-              background: 'var(--surface-2)',
-              border: '1px solid var(--border)',
-              borderRadius: 2,
-              padding: '8px 12px',
-              cursor: 'pointer',
-              textAlign: 'left',
-              transition: 'background 0.15s, border-color 0.15s',
-            }}
-            onMouseEnter={e => {
-              const el = e.currentTarget
-              el.style.background = 'var(--chat-amber-glow)'
-              el.style.borderColor = 'var(--chat-amber-border)'
-            }}
-            onMouseLeave={e => {
-              const el = e.currentTarget
-              el.style.background = 'var(--surface-2)'
-              el.style.borderColor = 'var(--border)'
-            }}
-          >
-            <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 10, color: `var(${chip.typeVar})`, flexShrink: 0, textTransform: 'uppercase' }}>
-              {chip.type}
-            </span>
-            <span style={{ fontFamily: 'var(--font-space-grotesk)', fontSize: 12, color: 'var(--text-secondary)' }}>
-              {chip.text}
-            </span>
-          </motion.button>
-        ))}
-      </div>
+      )}
     </div>
+  )
+}
+
+// ── ConversationItem ──────────────────────────────────────────────────────────
+
+function ConversationItem({ session, isActive, onClick }: { session: ChatSession; isActive: boolean; onClick: () => void }) {
+  const isRecent = session.last_message_at
+    ? (Date.now() - new Date(session.last_message_at).getTime()) < 24 * 60 * 60 * 1000
+    : false
+
+  const filled = Math.min(Math.round((session.message_count / 20) * 8), 8)
+  const densityBar = '▓'.repeat(filled) + '░'.repeat(8 - filled)
+
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        width: '100%',
+        height: isRecent ? 72 : 48,
+        padding: '0 16px',
+        background: isActive ? 'rgba(245,158,11,0.06)' : 'transparent',
+        borderLeft: isActive ? '2px solid var(--chat-amber)' : '2px solid transparent',
+        borderRadius: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        gap: isRecent ? 4 : 0,
+        textAlign: 'left',
+        cursor: 'pointer',
+        borderBottom: '1px solid var(--border)',
+        borderTop: 'none',
+        borderRight: 'none',
+        transition: 'background 0.15s',
+      }}
+      onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.02)' }}
+      onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent' }}
+    >
+      <span style={{ fontFamily: 'var(--font-space-grotesk)', fontSize: 12, fontWeight: 500, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {session.title}
+      </span>
+      {isRecent && (
+        <>
+          <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 9, color: 'var(--chat-amber)', opacity: 0.6, letterSpacing: '0.05em' }}>
+            {densityBar}
+          </span>
+          <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 9, color: 'var(--text-muted)' }}>
+            {session.message_count} msgs
+          </span>
+        </>
+      )}
+    </button>
   )
 }
 
@@ -368,9 +520,17 @@ export function SectionChat({ direction }: SectionProps) {
   const [input, setInput] = useState('')
   const [tokenCount, setTokenCount] = useState(0)
   const [prefixFocused, setPrefixFocused] = useState(false)
+  const [collapsedTools, setCollapsedTools] = useState<Set<string>>(new Set())
+
+  // Session state
+  const [sessions, setSessions] = useState<ChatSession[]>([])
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
+  const [sessionsLoading, setSessionsLoading] = useState(true)
 
   const feedRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const finalContentRef = useRef('')
+  const finalToolCallsRef = useRef<ToolCall[]>([])
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -379,16 +539,68 @@ export function SectionChat({ direction }: SectionProps) {
     }
   }, [messages])
 
-  const toggleToolCall = useCallback((msgId: string, toolId: string) => {
-    setMessages(prev => prev.map(m => {
-      if (m.id !== msgId) return m
-      return {
-        ...m,
-        toolCalls: m.toolCalls?.map(tc =>
-          tc.id === toolId ? { ...tc, collapsed: !(tc.collapsed === false) } : tc
-        ),
+  // Load sessions on mount
+  useEffect(() => {
+    async function loadSessions() {
+      setSessionsLoading(true)
+      try {
+        const res = await fetch('/api/chat-sessions')
+        if (res.ok) {
+          const data = await res.json()
+          setSessions(data)
+        }
+      } finally {
+        setSessionsLoading(false)
       }
-    }))
+    }
+    loadSessions()
+  }, [])
+
+  // Load messages when session changes
+  useEffect(() => {
+    if (!activeSessionId) return
+    async function loadMessages() {
+      const res = await fetch(`/api/chat-sessions/${activeSessionId}`)
+      if (res.ok) {
+        const data = await res.json()
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        setMessages(data.messages.map((m: any) => ({
+          id: m.id,
+          role: m.role,
+          content: m.content,
+          toolCallPhase: m.tool_calls ?? [],
+          timestamp: new Date(m.created_at),
+          isInToolPhase: false,
+        })))
+      }
+    }
+    loadMessages()
+  }, [activeSessionId])
+
+  const createSession = useCallback(async (): Promise<string | null> => {
+    const res = await fetch('/api/chat-sessions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'New conversation' }),
+    })
+    if (!res.ok) return null
+    const session = await res.json()
+    setSessions(prev => [session, ...prev])
+    setActiveSessionId(session.id)
+    setMessages([])
+    return session.id
+  }, [])
+
+  const toggleToolCall = useCallback((_msgId: string, toolId: string) => {
+    setCollapsedTools(prev => {
+      const next = new Set(prev)
+      if (next.has(toolId)) {
+        next.delete(toolId)
+      } else {
+        next.add(toolId)
+      }
+      return next
+    })
   }, [])
 
   const sendMessage = useCallback(async (text: string) => {
@@ -397,24 +609,60 @@ export function SectionChat({ direction }: SectionProps) {
 
     setInput('')
 
+    const isFirstMessage = messages.length === 0
+
+    // Get or create session inline (without clearing existing messages)
+    let sessionId: string | null = activeSessionId
+    if (!sessionId) {
+      try {
+        const res = await fetch('/api/chat-sessions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: 'New conversation' }),
+        })
+        if (res.ok) {
+          const session = await res.json()
+          sessionId = session.id
+          setSessions(prev => [session, ...prev])
+          setActiveSessionId(session.id)
+        }
+      } catch { /* continue without persistence */ }
+    }
+
     const userMsg: ChatMessage = {
       id: uid(),
       role: 'user',
       content: trimmed,
+      toolCallPhase: [],
       timestamp: new Date(),
+      isInToolPhase: false,
     }
 
     const aiMsg: ChatMessage = {
       id: uid(),
       role: 'assistant',
       content: '',
-      toolCalls: [],
+      toolCallPhase: [],
       timestamp: new Date(),
       isStreaming: true,
+      isInToolPhase: true,
     }
 
     setMessages(prev => [...prev, userMsg, aiMsg])
     setIsLoading(true)
+
+    // Persist user message (fire and forget)
+    if (sessionId) {
+      fetch(`/api/chat-sessions/${sessionId}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: 'user', content: trimmed }),
+      }).catch(() => {})
+    }
+
+    // Reset accumulators for this response
+    finalContentRef.current = ''
+    finalToolCallsRef.current = []
 
     try {
       const { supabaseUrl, supabaseAnonKey } = getClientConfig()
@@ -423,7 +671,10 @@ export function SectionChat({ direction }: SectionProps) {
         throw new Error('Supabase not configured')
       }
 
-      const apiMessages = messages.map(m => ({ role: m.role, content: m.content }))
+      // Filter out messages with empty content (tool-only responses) to avoid confusing the LLM
+      const apiMessages = messages
+        .filter(m => m.content.trim() !== '')
+        .map(m => ({ role: m.role, content: m.content }))
       apiMessages.push({ role: 'user', content: trimmed })
 
       const res = await fetch(`${supabaseUrl}/functions/v1/chat`, {
@@ -436,16 +687,20 @@ export function SectionChat({ direction }: SectionProps) {
       })
 
       if (!res.ok || !res.body) {
-        throw new Error(`HTTP ${res.status}`)
+        const errText = await res.text().catch(() => '')
+        throw new Error(`HTTP ${res.status}${errText ? ': ' + errText.slice(0, 200) : ''}`)
       }
 
       const reader = res.body.getReader()
       const dec = new TextDecoder()
       let totalChars = 0
+      const startTimes = new Map<string, number>()
+      let streamDone = false
+      let streamError = false
 
       while (true) {
         const { done, value } = await reader.read()
-        if (done) break
+        if (done || streamError) break
 
         const chunk = dec.decode(value)
         const lines = chunk.split('\n').filter(l => l.startsWith('data: '))
@@ -454,6 +709,7 @@ export function SectionChat({ direction }: SectionProps) {
           const data = line.slice(6).trim()
 
           if (data === '[DONE]') {
+            streamDone = true
             setMessages(prev => prev.map((m, i) =>
               i === prev.length - 1 ? { ...m, isStreaming: false } : m
             ))
@@ -463,44 +719,102 @@ export function SectionChat({ direction }: SectionProps) {
           try {
             const json = JSON.parse(data)
 
+            if (json.error) {
+              setMessages(prev => prev.map((m, i) =>
+                i === prev.length - 1
+                  ? { ...m, content: `⚠ ${json.error}`, isStreaming: false, isInToolPhase: false }
+                  : m
+              ))
+              streamError = true
+              break
+            }
+
             if (json.token) {
               totalChars += json.token.length
               setTokenCount(Math.round(totalChars / 4))
+              finalContentRef.current += json.token
               setMessages(prev => prev.map((m, i) =>
-                i === prev.length - 1 ? { ...m, content: m.content + json.token } : m
+                i === prev.length - 1
+                  ? { ...m, content: m.content + json.token, isInToolPhase: false }
+                  : m
               ))
             }
 
             if (json.tool_call) {
+              startTimes.set(json.tool_call.id, Date.now())
               const tc: ToolCall = {
                 id: json.tool_call.id,
                 name: json.tool_call.name,
                 params: json.tool_call.params ?? {},
                 status: 'running',
-                collapsed: false,
               }
+              finalToolCallsRef.current.push(tc)
               setMessages(prev => prev.map((m, i) =>
                 i === prev.length - 1
-                  ? { ...m, toolCalls: [...(m.toolCalls ?? []), tc] }
+                  ? { ...m, toolCallPhase: [...m.toolCallPhase, tc] }
                   : m
               ))
             }
 
             if (json.tool_result) {
               const { id, status, result } = json.tool_result
+              const executionTimeMs = startTimes.has(id)
+                ? Date.now() - startTimes.get(id)!
+                : undefined
+              finalToolCallsRef.current = finalToolCallsRef.current.map(tc =>
+                tc.id === id ? { ...tc, status, result, executionTimeMs } : tc
+              )
               setMessages(prev => prev.map((m, i) => {
                 if (i !== prev.length - 1) return m
                 return {
                   ...m,
-                  toolCalls: m.toolCalls?.map(tc =>
-                    tc.id === id ? { ...tc, status, result, collapsed: true } : tc
+                  toolCallPhase: m.toolCallPhase.map(tc =>
+                    tc.id === id ? { ...tc, status, result, executionTimeMs } : tc
                   ),
                 }
               }))
+              setCollapsedTools(prev => {
+                const next = new Set(prev)
+                next.add(id)
+                return next
+              })
             }
           } catch {
             // skip malformed
           }
+        }
+      }
+
+      // Persist assistant message after stream completes
+      if (sessionId && streamDone && (finalContentRef.current || finalToolCallsRef.current.length > 0)) {
+        fetch(`/api/chat-sessions/${sessionId}/messages`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            role: 'assistant',
+            content: finalContentRef.current,
+            tool_calls: finalToolCallsRef.current,
+          }),
+        }).catch(() => {})
+
+        // Update session metadata in list
+        setSessions(prev => prev.map(s =>
+          s.id === sessionId
+            ? { ...s, message_count: s.message_count + 2, last_message_at: new Date().toISOString() }
+            : s
+        ))
+
+        // Auto-title for first message
+        if (isFirstMessage) {
+          const title = trimmed.slice(0, 50)
+          fetch(`/api/chat-sessions/${sessionId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title }),
+          }).catch(() => {})
+          setSessions(prev => prev.map(s =>
+            s.id === sessionId ? { ...s, title } : s
+          ))
         }
       }
     } catch (err) {
@@ -513,7 +827,7 @@ export function SectionChat({ direction }: SectionProps) {
     } finally {
       setIsLoading(false)
     }
-  }, [messages, isLoading])
+  }, [messages, isLoading, activeSessionId])
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -525,14 +839,10 @@ export function SectionChat({ direction }: SectionProps) {
     }
   }, [input, sendMessage])
 
-  const handleChipClick = useCallback((text: string) => {
-    setInput(text)
-    setTimeout(() => inputRef.current?.focus(), 0)
-  }, [])
-
   const handleClear = useCallback(() => {
     setMessages([])
     setTokenCount(0)
+    setActiveSessionId(null)
   }, [])
 
   const canSend = input.trim().length > 0 && !isLoading
@@ -567,169 +877,238 @@ export function SectionChat({ direction }: SectionProps) {
   )
 
   return (
-    <SectionWrapper direction={direction} style={{ display: 'flex', flexDirection: 'column' }}>
-      {/* Inline CSS for streaming animations */}
-      <style>{`
-        @keyframes streaming-pulse {
-          0%, 100% { opacity: 0.2 }
-          50% { opacity: 1 }
-        }
-        @keyframes cursor-blink {
-          0%, 100% { opacity: 1 }
-          50% { opacity: 0 }
-        }
-        @keyframes prefix-blink {
-          0%, 100% { opacity: 1 }
-          50% { opacity: 0 }
-        }
-        .streaming-dot {
-          font-family: var(--font-jetbrains-mono);
-          font-size: 13px;
-          color: var(--chat-amber);
-          animation: streaming-pulse 600ms ease-in-out infinite;
-          display: inline-block;
-        }
-        .cursor-blink {
-          animation: cursor-blink 530ms step-end infinite;
-        }
-        .prefix-underscore {
-          animation: prefix-blink 530ms step-end infinite;
-        }
-      `}</style>
+    <SectionWrapper direction={direction} style={{ flexDirection: 'row' }}>
+      {/* Sessions panel */}
+      <div style={{
+        width: 280,
+        borderRight: '1px solid var(--border)',
+        display: 'flex',
+        flexDirection: 'column',
+        background: 'var(--surface-1)',
+        flexShrink: 0,
+        overflow: 'hidden',
+      }}>
+        {/* Panel header */}
+        <div style={{
+          height: 48,
+          borderBottom: '1px solid var(--border)',
+          display: 'flex',
+          alignItems: 'center',
+          padding: '0 16px',
+          justifyContent: 'space-between',
+          flexShrink: 0,
+        }}>
+          <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.1em' }}>
+            CONVERSATIONS
+          </span>
+          <button
+            onClick={createSession}
+            title="New conversation"
+            style={{
+              width: 24, height: 24, borderRadius: 0,
+              border: '1px solid var(--border)',
+              background: 'transparent', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontFamily: 'var(--font-jetbrains-mono)', fontSize: 16,
+              color: 'var(--text-muted)',
+              transition: 'color 0.15s, border-color 0.15s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.color = 'var(--chat-amber)'; e.currentTarget.style.borderColor = 'var(--chat-amber)' }}
+            onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border)' }}
+          >
+            +
+          </button>
+        </div>
 
-      <SectionHeader
-        title="CE.CHAT"
-        accent="var(--chat-amber)"
-        rightSlot={rightSlot}
-      />
-
-      {/* ChatFeed */}
-      <div
-        ref={feedRef}
-        style={{
-          flex: 1,
-          overflowY: 'auto',
-          padding: '24px 32px',
-          minHeight: 0,
-        }}
-      >
-        <div style={{ maxWidth: 720, marginLeft: 'auto', marginRight: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {messages.length === 0 && !isLoading && (
-            <EmptyState onChipClick={handleChipClick} />
+        {/* Sessions list */}
+        <div style={{ flex: 1, overflowY: 'auto' }}>
+          {sessionsLoading ? (
+            <div style={{ padding: '16px', fontFamily: 'var(--font-jetbrains-mono)', fontSize: 10, color: 'var(--text-muted)' }}>
+              loading...
+            </div>
+          ) : sessions.length === 0 ? (
+            <div style={{ padding: '16px', fontFamily: 'var(--font-jetbrains-mono)', fontSize: 10, color: 'var(--text-muted)' }}>
+              no conversations yet
+            </div>
+          ) : (
+            sessions.map(session => (
+              <ConversationItem
+                key={session.id}
+                session={session}
+                isActive={session.id === activeSessionId}
+                onClick={() => setActiveSessionId(session.id)}
+              />
+            ))
           )}
-
-          <AnimatePresence initial={false}>
-            {messages.map((msg) => {
-              if (msg.role === 'user') {
-                return <UserMessage key={msg.id} message={msg} />
-              }
-              if (msg.isStreaming && msg.content === '') {
-                return (
-                  <motion.div key={msg.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                    <StreamingIndicator />
-                  </motion.div>
-                )
-              }
-              return (
-                <AiMessage key={msg.id} message={msg} onToggleTool={toggleToolCall} />
-              )
-            })}
-          </AnimatePresence>
         </div>
       </div>
 
-      {/* InputBar */}
-      <div style={{
-        flexShrink: 0,
-        height: 72,
-        background: 'var(--surface-1)',
-        borderTop: '1px solid var(--border)',
-        display: 'flex',
-        alignItems: 'center',
-        padding: '0 16px',
-      }}>
+      {/* Chat panel */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+        {/* Inline CSS for streaming animations */}
+        <style>{`
+          @keyframes streaming-pulse {
+            0%, 100% { opacity: 0.2 }
+            50% { opacity: 1 }
+          }
+          @keyframes cursor-blink {
+            0%, 100% { opacity: 1 }
+            50% { opacity: 0 }
+          }
+          @keyframes prefix-blink {
+            0%, 100% { opacity: 1 }
+            50% { opacity: 0 }
+          }
+          .streaming-dot {
+            font-family: var(--font-jetbrains-mono);
+            font-size: 13px;
+            color: var(--chat-amber);
+            animation: streaming-pulse 600ms ease-in-out infinite;
+            display: inline-block;
+          }
+          .cursor-blink {
+            animation: cursor-blink 530ms step-end infinite;
+          }
+          .prefix-underscore {
+            animation: prefix-blink 530ms step-end infinite;
+          }
+        `}</style>
+
+        <SectionHeader
+          title="CE.CHAT"
+          accent="var(--chat-amber)"
+          rightSlot={rightSlot}
+        />
+
+        {/* ChatFeed */}
+        <div
+          ref={feedRef}
+          style={{
+            flex: 1,
+            overflowY: 'auto',
+            padding: '24px 32px',
+            minHeight: 0,
+          }}
+        >
+          <div style={{ maxWidth: 720, marginLeft: 'auto', marginRight: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {messages.length === 0 && !isLoading && (
+              <BootSequence onCommand={sendMessage} />
+            )}
+
+            <AnimatePresence initial={false}>
+              {messages.map((msg) => {
+                if (msg.role === 'user') {
+                  return <UserMessage key={msg.id} message={msg} />
+                }
+                if (msg.isStreaming && msg.isInToolPhase && msg.toolCallPhase.length === 0) {
+                  return (
+                    <motion.div key={msg.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                      <StreamingIndicator />
+                    </motion.div>
+                  )
+                }
+                return (
+                  <AiMessage key={msg.id} message={msg} collapsedTools={collapsedTools} onToggleTool={toggleToolCall} />
+                )
+              })}
+            </AnimatePresence>
+          </div>
+        </div>
+
+        {/* InputBar */}
         <div style={{
-          width: '100%',
-          maxWidth: 720,
-          marginLeft: 'auto',
-          marginRight: 'auto',
+          flexShrink: 0,
+          height: 72,
+          background: 'var(--surface-1)',
+          borderTop: '1px solid var(--border)',
           display: 'flex',
           alignItems: 'center',
-          gap: 10,
+          padding: '0 16px',
         }}>
-          {/* Prefix "> CE" */}
           <div style={{
-            fontFamily: 'var(--font-jetbrains-mono)',
-            fontSize: 13,
-            fontWeight: 500,
-            color: 'var(--chat-amber)',
-            width: 52,
-            flexShrink: 0,
-            userSelect: 'none',
+            width: '100%',
+            maxWidth: 720,
+            marginLeft: 'auto',
+            marginRight: 'auto',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
           }}>
-            {'> CE'}
-            {!prefixFocused && (
-              <span className="prefix-underscore" style={{ color: 'var(--chat-amber)' }}>_</span>
-            )}
-          </div>
-
-          {/* Input */}
-          <input
-            ref={inputRef}
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            onFocus={() => setPrefixFocused(true)}
-            onBlur={() => setPrefixFocused(false)}
-            placeholder="Ask anything…"
-            disabled={isLoading}
-            style={{
-              flex: 1,
-              height: 40,
-              background: 'var(--surface-2)',
-              border: '1px solid var(--border)',
-              borderRadius: 2,
-              padding: '0 12px',
+            {/* Prefix "> CE" */}
+            <div style={{
               fontFamily: 'var(--font-jetbrains-mono)',
               fontSize: 13,
-              color: 'var(--text-primary)',
-              outline: 'none',
-              transition: 'border-color 0.15s, box-shadow 0.15s',
-            }}
-            onFocusCapture={e => {
-              const el = e.currentTarget
-              el.style.borderColor = 'var(--chat-amber)'
-              el.style.boxShadow = '0 0 0 2px var(--chat-amber-glow)'
-            }}
-            onBlurCapture={e => {
-              const el = e.currentTarget
-              el.style.borderColor = 'var(--border)'
-              el.style.boxShadow = 'none'
-            }}
-          />
-
-          {/* Send button */}
-          <button
-            onClick={() => sendMessage(input)}
-            disabled={!canSend}
-            style={{
-              width: 40,
-              height: 40,
+              fontWeight: 500,
+              color: 'var(--chat-amber)',
+              width: 52,
               flexShrink: 0,
-              borderRadius: 2,
-              border: 'none',
-              background: canSend ? 'var(--chat-amber)' : 'var(--surface-3)',
-              cursor: canSend ? 'pointer' : 'not-allowed',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'background 0.15s',
-            }}
-          >
-            <ArrowRight size={14} style={{ color: canSend ? '#fff' : 'var(--text-muted)' }} />
-          </button>
+              userSelect: 'none',
+            }}>
+              {'> CE'}
+              {!prefixFocused && (
+                <span className="prefix-underscore" style={{ color: 'var(--chat-amber)' }}>_</span>
+              )}
+            </div>
+
+            {/* Input */}
+            <input
+              ref={inputRef}
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              onFocus={() => setPrefixFocused(true)}
+              onBlur={() => setPrefixFocused(false)}
+              placeholder="Ask anything…"
+              disabled={isLoading}
+              style={{
+                flex: 1,
+                height: 40,
+                background: 'var(--surface-2)',
+                border: '1px solid var(--border)',
+                borderRadius: 2,
+                padding: '0 12px',
+                fontFamily: 'var(--font-jetbrains-mono)',
+                fontSize: 13,
+                color: 'var(--text-primary)',
+                outline: 'none',
+                transition: 'border-color 0.15s, box-shadow 0.15s',
+              }}
+              onFocusCapture={e => {
+                const el = e.currentTarget
+                el.style.borderColor = 'var(--chat-amber)'
+                el.style.boxShadow = '0 0 0 2px var(--chat-amber-glow)'
+              }}
+              onBlurCapture={e => {
+                const el = e.currentTarget
+                el.style.borderColor = 'var(--border)'
+                el.style.boxShadow = 'none'
+              }}
+            />
+
+            {/* Send button */}
+            <button
+              onClick={() => sendMessage(input)}
+              disabled={!canSend}
+              style={{
+                width: 40,
+                height: 40,
+                flexShrink: 0,
+                borderRadius: 2,
+                border: 'none',
+                background: canSend ? 'var(--chat-amber)' : 'var(--surface-3)',
+                cursor: canSend ? 'pointer' : 'not-allowed',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'background 0.15s',
+              }}
+            >
+              <ArrowRight size={14} style={{ color: canSend ? '#fff' : 'var(--text-muted)' }} />
+            </button>
+          </div>
         </div>
       </div>
     </SectionWrapper>
   )
 }
+

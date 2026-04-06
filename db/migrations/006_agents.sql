@@ -54,6 +54,7 @@ begin
 end;
 $$;
 
+drop trigger if exists agents_updated_at on agents;
 create trigger agents_updated_at
   before update on agents
   for each row execute function update_agents_updated_at();

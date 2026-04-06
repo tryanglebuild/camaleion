@@ -100,8 +100,14 @@ export async function POST() {
   }
 
   // ── 2. Deploy edge functions ────────────────────────────────────────────────
+  // Auto-discover: every subdirectory of supabase/functions/ that has an index.ts
   const functionsDir = path.join(REPO_ROOT, 'supabase', 'functions')
-  const functionSlugs = ['embed', 'rag-answer', 'chat']
+  const functionSlugs = fs.existsSync(functionsDir)
+    ? fs.readdirSync(functionsDir, { withFileTypes: true })
+        .filter(e => e.isDirectory() && fs.existsSync(path.join(functionsDir, e.name, 'index.ts')))
+        .map(e => e.name)
+        .sort()
+    : []
   for (const slug of functionSlugs) {
     const srcPath = path.join(functionsDir, slug, 'index.ts')
     if (!fs.existsSync(srcPath)) {
@@ -118,17 +124,27 @@ export async function POST() {
     steps.push(await runSQL(ref, supabaseAccessToken, fs.readFileSync(schemaPath, 'utf-8'), 'Schema'))
   }
 
-  // Run migration files in order (skip 001 — it just references schema.sql via \i)
-  const migrationsDir = path.join(REPO_ROOT, 'db', 'migrations')
-  if (fs.existsSync(migrationsDir)) {
-    const files = fs.readdirSync(migrationsDir)
-      .filter(f => f.endsWith('.sql') && !f.startsWith('001'))
-      .sort()
-
-    for (const file of files) {
-      const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf-8')
-      steps.push(await runSQL(ref, supabaseAccessToken, sql, `Migration: ${file}`))
+  // Auto-discover migrations from both db/migrations/ and supabase/migrations/
+  // Merge, deduplicate by filename, sort globally, skip 001 (references schema.sql via \i)
+  const migrationsDirs = [
+    path.join(REPO_ROOT, 'db', 'migrations'),
+    path.join(REPO_ROOT, 'supabase', 'migrations'),
+  ]
+  const seen = new Set<string>()
+  const allMigrations: { file: string; fullPath: string }[] = []
+  for (const dir of migrationsDirs) {
+    if (!fs.existsSync(dir)) continue
+    for (const file of fs.readdirSync(dir).filter(f => f.endsWith('.sql') && !f.startsWith('001'))) {
+      if (!seen.has(file)) {
+        seen.add(file)
+        allMigrations.push({ file, fullPath: path.join(dir, file) })
+      }
     }
+  }
+  allMigrations.sort((a, b) => a.file.localeCompare(b.file))
+  for (const { file, fullPath } of allMigrations) {
+    const sql = fs.readFileSync(fullPath, 'utf-8')
+    steps.push(await runSQL(ref, supabaseAccessToken, sql, `Migration: ${file}`))
   }
 
   const hasError = steps.some(s => s.status === 'error')

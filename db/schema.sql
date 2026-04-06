@@ -61,6 +61,7 @@ begin
 end;
 $$ language plpgsql;
 
+drop trigger if exists entries_updated_at on entries;
 create trigger entries_updated_at
   before update on entries
   for each row execute function update_updated_at();

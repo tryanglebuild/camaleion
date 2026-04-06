@@ -22,22 +22,22 @@ import { AddEntryModal } from '@/components/dashboard/AddEntryModal'
 import { CommandPalette } from '@/components/dashboard/CommandPalette'
 
 const SECTIONS = [
-  SectionDashboard,
-  SectionEntries,
-  SectionSearch,
-  SectionProjects,
-  SectionCompanies,
-  SectionPeople,
-  SectionTasks,
-  SectionRules,
-  SectionAnalyze,
-  SectionPlan,
-  SectionGenerate,
-  SectionGraph,
-  SectionSettings,
-  SectionTimeline,
-  SectionAgents,
-  SectionChat,
+  SectionDashboard,   // 0  Overview
+  SectionEntries,     // 1  Memory
+  SectionSearch,      // 2  Search
+  SectionProjects,    // 3  Projects
+  SectionCompanies,   // 4  Companies
+  SectionPeople,      // 5  People
+  SectionChat,        // 6  Chat
+  SectionAgents,      // 7  Agents
+  SectionAnalyze,     // 8  Analyses
+  SectionPlan,        // 9  Plans
+  SectionGenerate,    // 10 Content
+  SectionGraph,       // 11 Graph
+  SectionTimeline,    // 12 Timeline
+  SectionTasks,       // 13 Tasks
+  SectionRules,       // 14 Rules
+  SectionSettings,    // 15 Settings
 ]
 
 export default function DashboardPage() {

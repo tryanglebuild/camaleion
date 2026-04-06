@@ -80,18 +80,27 @@ const NAV_GROUPS = [
     ],
   },
   {
-    label: 'SYSTEM',
+    label: 'AI',
     items: [
-      { icon: CheckSquare, label: 'Tasks',    index: 6,  countKey: 'tasks' },
-      { icon: ShieldCheck, label: 'Rules',    index: 7,  countKey: 'rules' },
-      { icon: BarChart2,   label: 'Analyses', index: 8,  countKey: 'analyses' },
-      { icon: ListChecks,  label: 'Plans',    index: 9,  countKey: 'plans' },
-      { icon: Sparkles,    label: 'Content',  index: 10, countKey: 'posts' },
-      { icon: Network,            label: 'Graph',    index: 11, countKey: null },
-      { icon: Settings,           label: 'Settings', index: 12, countKey: null },
-      { icon: GitCommitVertical,  label: 'Timeline', index: 13, countKey: null },
-      { icon: Bot,                label: 'Agents',   index: 14, countKey: null },
-      { icon: MessageSquare,      label: 'Chat',     index: 15, countKey: null },
+      { icon: MessageSquare, label: 'Chat',   index: 6,  countKey: null },
+      { icon: Bot,           label: 'Agents', index: 7,  countKey: null },
+    ],
+  },
+  {
+    label: 'INTEL',
+    items: [
+      { icon: BarChart2,         label: 'Analyses', index: 8,  countKey: 'analyses' },
+      { icon: ListChecks,        label: 'Plans',    index: 9,  countKey: 'plans' },
+      { icon: Sparkles,          label: 'Content',  index: 10, countKey: 'posts' },
+      { icon: Network,           label: 'Graph',    index: 11, countKey: null },
+      { icon: GitCommitVertical, label: 'Timeline', index: 12, countKey: null },
+    ],
+  },
+  {
+    label: 'OPS',
+    items: [
+      { icon: CheckSquare, label: 'Tasks', index: 13, countKey: 'tasks' },
+      { icon: ShieldCheck, label: 'Rules', index: 14, countKey: 'rules' },
     ],
   },
 ]
@@ -158,7 +167,7 @@ export function LeftNav({ current, onNavigate }: LeftNavProps) {
           onClick={() => setMobileOpen(v => !v)}
           style={{
             position: 'fixed', top: 12, left: 12, zIndex: 200,
-            width: 36, height: 36, borderRadius: 8,
+            width: 36, height: 36, borderRadius: 0,
             background: 'var(--surface-1)', border: '1px solid var(--border)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             cursor: 'pointer', color: 'var(--text-primary)',
@@ -206,7 +215,7 @@ export function LeftNav({ current, onNavigate }: LeftNavProps) {
         gap: 9,
       }}>
         <div style={{
-          width: 26, height: 26, borderRadius: 7, flexShrink: 0,
+          width: 26, height: 26, borderRadius: 0, flexShrink: 0,
           background: 'var(--surface-2)',
           border: '1px solid var(--border)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -246,7 +255,7 @@ export function LeftNav({ current, onNavigate }: LeftNavProps) {
               textAlign: collapsed ? 'center' : 'left',
               fontFamily: 'var(--font-jetbrains-mono)',
               fontSize: 8, fontWeight: 600,
-              color: 'var(--text-muted)',
+              color: group.label === 'AI' ? 'rgba(245,158,11,0.6)' : 'var(--text-muted)',
               letterSpacing: '0.12em',
               userSelect: 'none',
               overflow: 'hidden',
@@ -268,8 +277,8 @@ export function LeftNav({ current, onNavigate }: LeftNavProps) {
                     style={{
                       width: '100%',
                       height: 34,
-                      borderRadius: 7,
-                      border: isActive ? '1px solid var(--ui-glow)' : '1px solid transparent',
+                      borderRadius: 0,
+                      border: '1px solid transparent',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: collapsed ? 'center' : 'flex-start',
@@ -277,9 +286,9 @@ export function LeftNav({ current, onNavigate }: LeftNavProps) {
                       padding: collapsed ? '0' : '0 10px',
                       cursor: 'pointer',
                       position: 'relative',
-                      background: isActive ? 'var(--ui-glow)' : 'transparent',
-                      color: isActive ? 'var(--ui-fg)' : hovered === i ? 'var(--text-primary)' : 'var(--text-muted)',
-                      transition: 'background 0.15s, color 0.15s, border-color 0.15s',
+                      background: isActive ? 'rgba(255,255,255,0.04)' : 'transparent',
+                      color: isActive ? 'var(--text-primary)' : hovered === i ? 'var(--text-primary)' : 'var(--text-muted)',
+                      transition: 'background 0.15s, color 0.15s',
                     }}
                     onMouseOver={e => {
                       if (!isActive) e.currentTarget.style.background = 'var(--surface-2)'
@@ -299,7 +308,7 @@ export function LeftNav({ current, onNavigate }: LeftNavProps) {
                           style={{
                             position: 'absolute', left: -8, top: '50%', marginTop: -10,
                             width: 3, height: 20,
-                            borderRadius: 2, background: 'var(--ui-fg)',
+                            borderRadius: 2, background: 'var(--chat-amber)',
                             originY: 0.5,
                           }}
                         />
@@ -338,7 +347,7 @@ export function LeftNav({ current, onNavigate }: LeftNavProps) {
                           style={{
                             fontFamily: 'var(--font-jetbrains-mono)',
                             fontSize: 9, fontWeight: 500,
-                            color: isActive ? 'var(--ui-fg)' : 'var(--text-muted)',
+                            color: isActive ? 'var(--text-primary)' : 'var(--text-muted)',
                             flexShrink: 0,
                             minWidth: 16,
                             textAlign: 'right',
@@ -360,7 +369,7 @@ export function LeftNav({ current, onNavigate }: LeftNavProps) {
                         transition={{ duration: 0.12 }}
                         style={{
                           position: 'absolute', left: NAV_COLLAPSED + 4, top: '50%', transform: 'translateY(-50%)',
-                          padding: '4px 10px', borderRadius: 6,
+                          padding: '4px 10px', borderRadius: 0,
                           background: 'var(--surface-1)', border: '1px solid var(--border)',
                           boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
                           fontFamily: 'var(--font-inter)',
@@ -388,16 +397,88 @@ export function LeftNav({ current, onNavigate }: LeftNavProps) {
       {/* ── Footer ──────────────────────────────────────────────── */}
       <div style={{
         borderTop: '1px solid var(--border)',
-        padding: '8px 0 10px',
-        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+        padding: '0 0 10px',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0,
       }}>
+        {/* Settings nav item */}
+        <div style={{ width: '100%', position: 'relative', padding: collapsed ? '8px 6px 0' : '8px 8px 0', marginBottom: 1 }}>
+          <button
+            onClick={() => isMobile ? handleMobileNavigate(15) : onNavigate(15)}
+            onMouseEnter={() => setHovered(15)}
+            onMouseLeave={() => setHovered(null)}
+            style={{
+              width: '100%', height: 34, borderRadius: 0,
+              border: '1px solid transparent',
+              display: 'flex', alignItems: 'center',
+              justifyContent: collapsed ? 'center' : 'flex-start',
+              gap: 9, padding: collapsed ? '0' : '0 10px',
+              cursor: 'pointer', position: 'relative',
+              background: current === 15 ? 'rgba(255,255,255,0.04)' : 'transparent',
+              color: current === 15 ? 'var(--text-primary)' : hovered === 15 ? 'var(--text-primary)' : 'var(--text-muted)',
+              transition: 'background 0.15s, color 0.15s',
+            }}
+            onMouseOver={e => { if (current !== 15) e.currentTarget.style.background = 'var(--surface-2)' }}
+            onMouseOut={e => { if (current !== 15) e.currentTarget.style.background = 'transparent' }}
+          >
+            <AnimatePresence>
+              {current === 15 && (
+                <motion.div
+                  layoutId="active-bar"
+                  initial={{ scaleY: 0 }}
+                  animate={{ scaleY: 1 }}
+                  exit={{ scaleY: 0 }}
+                  style={{
+                    position: 'absolute', left: -8, top: '50%', marginTop: -10,
+                    width: 3, height: 20,
+                    borderRadius: 0, background: 'var(--chat-amber)',
+                    originY: 0.5,
+                  }}
+                />
+              )}
+            </AnimatePresence>
+            <Settings size={14} strokeWidth={1.6} style={{ flexShrink: 0 }} />
+            <AnimatePresence>
+              {!collapsed && (
+                <motion.span
+                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                  transition={{ duration: 0.15 }}
+                  style={{ fontFamily: 'var(--font-inter)', fontSize: 12, fontWeight: current === 15 ? 500 : 400, flex: 1, textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', letterSpacing: '-0.01em' }}
+                >
+                  Settings
+                </motion.span>
+              )}
+            </AnimatePresence>
+            <AnimatePresence>
+              {collapsed && hovered === 15 && (
+                <motion.div
+                  initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -6 }}
+                  transition={{ duration: 0.12 }}
+                  style={{
+                    position: 'absolute', left: NAV_COLLAPSED + 4, top: '50%', transform: 'translateY(-50%)',
+                    padding: '4px 10px', borderRadius: 0,
+                    background: 'var(--surface-1)', border: '1px solid var(--border)',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+                    fontFamily: 'var(--font-inter)', fontSize: 12, fontWeight: 500, color: 'var(--text-primary)',
+                    whiteSpace: 'nowrap', pointerEvents: 'none', zIndex: 200,
+                  }}
+                >
+                  Settings
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </button>
+        </div>
+
+        {/* Separator */}
+        <div style={{ width: '100%', height: 1, background: 'var(--border)', margin: '6px 0' }} />
+
         {/* Collapse / expand toggle — always visible */}
         <button
           onClick={toggleCollapse}
           title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           style={{
             width: collapsed ? 30 : 'calc(100% - 28px)',
-            height: 28, borderRadius: 6,
+            height: 28, borderRadius: 0,
             border: '1px solid var(--border)',
             background: 'transparent', cursor: 'pointer',
             display: 'flex', alignItems: 'center',
@@ -421,14 +502,14 @@ export function LeftNav({ current, onNavigate }: LeftNavProps) {
         {/* Status + theme row */}
         {collapsed ? (
           <>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
               <div style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--status-done)', animation: 'pulse-live 2.5s ease-in-out infinite' }} />
             </div>
             <button
               onClick={toggle}
               title={dark ? 'Light theme' : 'Dark theme'}
               style={{
-                width: 26, height: 26, borderRadius: 7,
+                width: 26, height: 26, borderRadius: 0,
                 border: '1px solid var(--border)',
                 background: 'transparent', cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -442,7 +523,7 @@ export function LeftNav({ current, onNavigate }: LeftNavProps) {
             </button>
           </>
         ) : (
-          <div style={{ width: '100%', padding: '0 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div style={{ width: '100%', padding: '4px 14px 0', display: 'flex', flexDirection: 'column', gap: 6 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <div style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--status-done)', animation: 'pulse-live 2.5s ease-in-out infinite' }} />
@@ -454,7 +535,7 @@ export function LeftNav({ current, onNavigate }: LeftNavProps) {
                 onClick={toggle}
                 title={dark ? 'Light theme' : 'Dark theme'}
                 style={{
-                  width: 24, height: 24, borderRadius: 6,
+                  width: 24, height: 24, borderRadius: 0,
                   border: '1px solid var(--border)',
                   background: 'transparent', cursor: 'pointer',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',

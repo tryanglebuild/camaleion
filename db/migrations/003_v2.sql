@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS rules (
   updated_at  timestamptz NOT NULL DEFAULT now()
 );
 
+drop trigger if exists rules_updated_at on rules;
 CREATE TRIGGER rules_updated_at
   BEFORE UPDATE ON rules
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
@@ -53,6 +54,7 @@ CREATE TABLE IF NOT EXISTS generation_profiles (
   UNIQUE (platform)
 );
 
+drop trigger if exists generation_profiles_updated_at on generation_profiles;
 CREATE TRIGGER generation_profiles_updated_at
   BEFORE UPDATE ON generation_profiles
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();

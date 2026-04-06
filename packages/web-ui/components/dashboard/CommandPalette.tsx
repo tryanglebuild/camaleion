@@ -10,16 +10,16 @@ export const PALETTE_SECTIONS = [
   { label: 'Projects',   icon: FolderOpen,       index: 3 },
   { label: 'Companies',  icon: Building2,        index: 4 },
   { label: 'People',     icon: Users,            index: 5 },
-  { label: 'Tasks',      icon: CheckSquare,      index: 6 },
-  { label: 'Rules',      icon: Shield,           index: 7 },
+  { label: 'Chat',       icon: MessageSquare,    index: 6 },
+  { label: 'Agents',     icon: Bot,              index: 7 },
   { label: 'Analyze',    icon: BarChart2,        index: 8 },
   { label: 'Plan',       icon: Map,              index: 9 },
   { label: 'Content',    icon: FileText,         index: 10 },
   { label: 'Graph',      icon: Network,          index: 11 },
-  { label: 'Settings',   icon: Settings,          index: 12 },
-  { label: 'Timeline',   icon: GitCommitVertical, index: 13 },
-  { label: 'Agents',     icon: Bot,               index: 14 },
-  { label: 'Chat',       icon: MessageSquare,     index: 15 },
+  { label: 'Timeline',   icon: GitCommitVertical, index: 12 },
+  { label: 'Tasks',      icon: CheckSquare,      index: 13 },
+  { label: 'Rules',      icon: Shield,           index: 14 },
+  { label: 'Settings',   icon: Settings,          index: 15 },
 ]
 
 interface Props {
