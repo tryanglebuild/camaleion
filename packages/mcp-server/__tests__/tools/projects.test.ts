@@ -28,7 +28,7 @@ describe('projects tools', () => {
       }
       const { supabase } = await import('../../src/lib/supabase.js')
       vi.mocked(supabase.from).mockReturnValue({
-        insert: vi.fn().mockReturnValue({
+        upsert: vi.fn().mockReturnValue({
           select: vi.fn().mockReturnValue({
             single: vi.fn().mockResolvedValue({ data: proj, error: null }),
           }),
@@ -52,7 +52,7 @@ describe('projects tools', () => {
       const proj = { id: 'p2', name: 'Minimal', company: null, stack: null, status: 'active' }
       const { supabase } = await import('../../src/lib/supabase.js')
       vi.mocked(supabase.from).mockReturnValue({
-        insert: vi.fn().mockReturnValue({
+        upsert: vi.fn().mockReturnValue({
           select: vi.fn().mockReturnValue({
             single: vi.fn().mockResolvedValue({ data: proj, error: null }),
           }),
@@ -66,7 +66,7 @@ describe('projects tools', () => {
     it('throws on insert error', async () => {
       const { supabase } = await import('../../src/lib/supabase.js')
       vi.mocked(supabase.from).mockReturnValue({
-        insert: vi.fn().mockReturnValue({
+        upsert: vi.fn().mockReturnValue({
           select: vi.fn().mockReturnValue({
             single: vi.fn().mockResolvedValue({ data: null, error: { message: 'unique violation' } }),
           }),
@@ -123,10 +123,10 @@ describe('projects tools', () => {
       await expect(handlers.get('get_projects')!({})).rejects.toThrow('Failed to get projects')
     })
 
-    it('registers exactly 2 tools', () => {
+    it('registers exactly 4 tools', () => {
       const { server, handlers: h } = makeMockServer()
       registerProjectTools(server as never)
-      expect(h.size).toBe(2)
+      expect(h.size).toBe(4)
     })
   })
 })

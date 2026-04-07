@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-server'
-
-const EMBED_URL = `${process.env.SUPABASE_URL}/functions/v1/embed`
+import { getConfig } from '@/lib/config.server'
 
 async function embed(text: string): Promise<number[]> {
-  const res = await fetch(EMBED_URL, {
+  const { supabaseUrl, supabaseServiceKey } = getConfig()
+  const res = await fetch(`${supabaseUrl}/functions/v1/embed`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
+      Authorization: `Bearer ${supabaseServiceKey}`,
     },
     body: JSON.stringify({ input: text }),
   })

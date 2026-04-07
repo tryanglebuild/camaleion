@@ -55,7 +55,7 @@ export function SectionAnalyze({ direction }: SectionProps) {
   const handleDelete = useCallback(async (id: string) => {
     if (!confirm('Delete this analysis?')) return
     setDeleting(id)
-    await supabase.from('embeddings').delete().eq('entry_id', id)
+    // ON DELETE CASCADE handles embeddings automatically
     await supabase.from('entries').delete().eq('id', id)
     setAnalyses(prev => prev.filter(a => a.id !== id))
     if (selected?.id === id) setSelected(null)

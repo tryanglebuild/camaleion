@@ -94,6 +94,7 @@ export function registerEntryTools(server: McpServer) {
       const parsed = UpdateEntryInputSchema.parse(input)
 
       const updates: Record<string, unknown> = {}
+      if (parsed.title !== undefined) updates.title = parsed.title
       if (parsed.status !== undefined) updates.status = parsed.status
       if (parsed.content !== undefined) updates.content = parsed.content
       if (parsed.tags !== undefined) updates.tags = parsed.tags
@@ -108,8 +109,8 @@ export function registerEntryTools(server: McpServer) {
 
       if (error) throw new Error(`Failed to update entry: ${error.message}`)
 
-      // Re-embed if content changed
-      if (parsed.content !== undefined) {
+      // Re-embed if title or content changed
+      if (parsed.content !== undefined || parsed.title !== undefined) {
         const textToEmbed = [data.title, data.content].filter(Boolean).join('\n')
         const embedding = await embedText(textToEmbed)
 

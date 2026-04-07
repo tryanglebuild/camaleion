@@ -29,6 +29,7 @@ export const GetEntriesInputSchema = z.object({
 
 export const UpdateEntryInputSchema = z.object({
   id: z.string().uuid(),
+  title: z.string().min(1).optional(),
   status: EntryStatusSchema.optional(),
   content: z.string().optional(),
   tags: z.array(z.string()).optional(),
@@ -71,6 +72,15 @@ export const AddPersonInputSchema = z.object({
   email: z.string().email().optional(),
   notes: z.string().optional(),
 })
+
+export const UpdatePersonInputSchema = z.object({
+  id: z.string().uuid().optional(),
+  name: z.string().min(1).optional(),
+  role: z.string().optional(),
+  company: z.string().optional(),
+  email: z.string().email().optional(),
+  notes: z.string().optional(),
+}).refine(d => d.id || d.name, { message: 'Either id or name is required to identify the person' })
 
 export const GetPeopleInputSchema = z.object({
   company: z.string().optional(),
@@ -189,6 +199,7 @@ export type GetProjectsInput = z.infer<typeof GetProjectsInputSchema>
 export type GetCompaniesInput = z.infer<typeof GetCompaniesInputSchema>
 export type GetProjectsByCompanyInput = z.infer<typeof GetProjectsByCompanyInputSchema>
 export type AddPersonInput = z.infer<typeof AddPersonInputSchema>
+export type UpdatePersonInput = z.infer<typeof UpdatePersonInputSchema>
 export type GetPeopleInput = z.infer<typeof GetPeopleInputSchema>
 export type GetRulesInput = z.infer<typeof GetRulesInputSchema>
 export type AddRuleInput = z.infer<typeof AddRuleInputSchema>

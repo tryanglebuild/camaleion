@@ -522,10 +522,25 @@ async function executeTool(
         .from("entries")
         .update(allowed)
         .eq("id", id)
-        .select("id, type, title, status")
+        .select("id, type, title, content, status")
         .single();
 
       if (error) throw new Error(error.message);
+
+      // Re-embed if title or content changed
+      if ("content" in fields || "title" in fields) {
+        const textToEmbed = [data.title, data.content].filter(Boolean).join("\n");
+        const embedding = await getEmbedding(supabase, textToEmbed);
+        if (embedding) {
+          await supabase.from("embeddings").delete().eq("entry_id", id);
+          await supabase.from("embeddings").insert({
+            entry_id: id,
+            embedding,
+            content: textToEmbed,
+          });
+        }
+      }
+
       return { success: true, entry: data };
     }
 
@@ -655,13 +670,39 @@ async function executeTool(
       const embedding = await getEmbedding(supabase, question);
       if (!embedding) throw new Error("Failed to generate embedding");
 
-      const { data, error } = await supabase.rpc("match_entries", {
+      const { data: matches, error } = await supabase.rpc("match_entries", {
         query_embedding: embedding,
         match_count: Math.min(Number(limit), 20),
       });
 
       if (error) throw new Error(error.message);
-      return data ?? [];
+      if (!matches?.length) return [];
+
+      // Fetch full entries so the AI gets actual content, not just IDs
+      const ids = (matches as { entry_id: string; score: number }[]).map((m) => m.entry_id);
+      const { data: entries, error: fetchErr } = await supabase
+        .from("entries")
+        .select("id, type, title, content, status, tags, project_id, created_at")
+        .in("id", ids);
+
+      if (fetchErr) throw new Error(fetchErr.message);
+
+      const scoreMap = new Map(
+        (matches as { entry_id: string; score: number }[]).map((m) => [m.entry_id, m.score]),
+      );
+
+      return (entries ?? [])
+        .map((e: { id: string; type: string; title: string; content: string | null; status: string | null; tags: string[] | null; project_id: string | null; created_at: string }) => ({
+          id: e.id,
+          type: e.type,
+          title: e.title,
+          content: e.content,
+          status: e.status,
+          tags: e.tags,
+          created_at: e.created_at,
+          score: scoreMap.get(e.id) ?? 0,
+        }))
+        .sort((a: { score: number }, b: { score: number }) => b.score - a.score);
     }
 
     case "search_memory": {

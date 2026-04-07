@@ -17,13 +17,16 @@ export function registerProjectTools(server: McpServer) {
 
       const { data, error } = await supabase
         .from('projects')
-        .insert({
-          name: parsed.name,
-          company: parsed.company ?? null,
-          stack: parsed.stack ?? null,
-          description: parsed.description ?? null,
-          status: parsed.status,
-        })
+        .upsert(
+          {
+            name: parsed.name,
+            company: parsed.company ?? null,
+            stack: parsed.stack ?? null,
+            description: parsed.description ?? null,
+            status: parsed.status,
+          },
+          { onConflict: 'name' }
+        )
         .select('*')
         .single()
 

@@ -14,7 +14,23 @@ export async function GET(req: NextRequest) {
       .order('created_at', { ascending: false })
 
     if (type) q = q.eq('type', type)
-    if (project) q = q.ilike('projects.name', project)
+    if (project) {
+      const { data: proj } = await supabaseAdmin
+        .from('projects')
+        .select('id')
+        .ilike('name', project)
+        .single()
+      if (proj) q = q.eq('project_id', proj.id)
+      else {
+        // Unknown project — return empty result
+        return new NextResponse(format === 'csv' ? 'id,type,title,content,status,pinned,tags,project,created_at\n' : '[]', {
+          headers: {
+            'Content-Type': format === 'csv' ? 'text/csv' : 'application/json',
+            'Content-Disposition': `attachment; filename="context-engine-${new Date().toISOString().slice(0, 10)}.${format === 'csv' ? 'csv' : 'json'}"`,
+          },
+        })
+      }
+    }
 
     const { data, error } = await q
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })

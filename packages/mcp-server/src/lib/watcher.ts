@@ -18,22 +18,11 @@ async function syncNewLines(sessionId: string, filePath: string) {
 
   if (stat.size <= prevOffset) return
 
-  const raw = readFileSync(filePath, 'utf-8')
-  const lines = raw.split('\n').filter(Boolean)
+  const raw = readFileSync(filePath)
+  const newContent = raw.slice(prevOffset).toString('utf-8')
+  const newLines = newContent.split('\n').filter(Boolean)
 
-  // Process only lines beyond what we've already seen
-  let byteCount = 0
-  const newLines: string[] = []
-
-  for (const line of lines) {
-    const lineBytes = Buffer.byteLength(line + '\n')
-    if (byteCount >= prevOffset) {
-      newLines.push(line)
-    }
-    byteCount += lineBytes
-  }
-
-  fileOffsets.set(filePath, stat.size)
+  fileOffsets.set(filePath, raw.length)
 
   for (const line of newLines) {
     try {

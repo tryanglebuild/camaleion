@@ -824,16 +824,30 @@ export function SectionChat({ direction }: SectionProps) {
             : s
         ))
 
-        // Auto-title for first message
+        // Auto-title for first message — generate via AI
         if (isFirstMessage) {
-          const title = trimmed.slice(0, 50)
-          fetch(`/api/chat-sessions/${sessionId}`, {
-            method: 'PATCH',
+          fetch(`/api/chat-sessions/${sessionId}/generate-title`, {
+            method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ title }),
-          }).catch(() => {})
+            body: JSON.stringify({
+              userMessage: trimmed,
+              assistantMessage: finalContentRef.current,
+            }),
+          })
+            .then(r => r.ok ? r.json() : null)
+            .then(data => {
+              if (data?.title) {
+                setSessions(prev => prev.map(s =>
+                  s.id === sessionId ? { ...s, title: data.title } : s
+                ))
+              }
+            })
+            .catch(() => {})
+
+          // Optimistic title while AI generates
+          const optimisticTitle = trimmed.slice(0, 50)
           setSessions(prev => prev.map(s =>
-            s.id === sessionId ? { ...s, title } : s
+            s.id === sessionId ? { ...s, title: optimisticTitle } : s
           ))
         }
       }

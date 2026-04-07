@@ -123,10 +123,10 @@ describe('people tools', () => {
       await expect(handlers.get('get_people')!({})).rejects.toThrow('Failed to get people')
     })
 
-    it('registers exactly 2 tools', () => {
+    it('registers exactly 3 tools', () => {
       const { server, handlers: h } = makeMockServer()
       registerPeopleTools(server as never)
-      expect(h.size).toBe(2)
+      expect(h.size).toBe(3)
     })
   })
 })

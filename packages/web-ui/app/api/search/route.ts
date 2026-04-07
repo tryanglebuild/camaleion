@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-server'
+import { getConfig } from '@/lib/config.server'
 
-const EMBED_URL = `${process.env.SUPABASE_URL}/functions/v1/embed`
+function getEmbedUrl() {
+  const { supabaseUrl, supabaseServiceKey } = getConfig()
+  return { embedUrl: `${supabaseUrl}/functions/v1/embed`, serviceKey: supabaseServiceKey }
+}
 
 async function runSearch(query: string, limit: number, filterType?: string | null) {
-  const embedRes = await fetch(EMBED_URL, {
+  const { embedUrl, serviceKey } = getEmbedUrl()
+  const embedRes = await fetch(embedUrl, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.SUPABASE_SERVICE_KEY}` },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${serviceKey}` },
     body: JSON.stringify({ input: query }),
   })
   const { embedding } = await embedRes.json()
@@ -71,9 +76,10 @@ export async function POST(req: NextRequest) {
     const { query, type, project, limit = 5 } = await req.json()
     if (!query) return NextResponse.json({ error: 'query required' }, { status: 400 })
 
-    const embedRes = await fetch(EMBED_URL, {
+    const { embedUrl, serviceKey } = getEmbedUrl()
+    const embedRes = await fetch(embedUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.SUPABASE_SERVICE_KEY}` },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${serviceKey}` },
       body: JSON.stringify({ input: query }),
     })
     const { embedding } = await embedRes.json()
