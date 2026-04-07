@@ -1,7 +1,7 @@
 'use client'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useState, useEffect, useCallback } from 'react'
-import { X, Plus, ChevronLeft, ChevronRight, Grid3X3, Columns2, AlignLeft, Pencil, Eye, CheckSquare, Square, Trash2, CheckCheck, Clock, BookOpen } from 'lucide-react'
+import { X, Plus, ChevronLeft, ChevronRight, Columns2, AlignLeft, Pencil, Eye, CheckSquare, Square, Trash2, CheckCheck, Clock, BookOpen } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { sectionVariants } from './sectionVariants'
@@ -34,7 +34,7 @@ const STATUS_META: Record<string, { color: string }> = {
   blocked:     { color: '#EF4444' },
 }
 
-type ViewMode = 'grid' | 'split' | 'timeline'
+type ViewMode = 'split' | 'timeline'
 
 // ── DetailPanel ─────────────────────────────────────────────────────
 function DetailPanel({ entry, onClose, onSaved }: { entry: Entry; onClose: () => void; onSaved: () => void }) {
@@ -357,7 +357,7 @@ export function SectionEntries({ direction, initialItemId }: SectionProps) {
   const [modalOpen, setModalOpen] = useState(false)
   const [editEntry, setEditEntry] = useState<Entry | null>(null)
   const [selectedEntry, setSelectedEntry] = useState<Entry | null>(null)
-  const [viewMode, setViewMode] = useState<ViewMode>('grid')
+  const [viewMode, setViewMode] = useState<ViewMode>('split')
   const [selectMode, setSelectMode] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [bulkLoading, setBulkLoading] = useState(false)
@@ -564,7 +564,7 @@ export function SectionEntries({ direction, initialItemId }: SectionProps) {
           }}>
             {/* View mode segmented control */}
             <div style={{ display: 'flex', gap: 1, background: 'var(--surface-2)', borderRadius: 6, padding: 2, border: '1px solid var(--border)' }}>
-              {([['grid', Grid3X3, 'Grid'], ['split', Columns2, 'Split'], ['timeline', AlignLeft, 'List']] as const).map(([mode, Icon, label]) => (
+              {([['split', Columns2, 'Split'], ['timeline', AlignLeft, 'List']] as const).map(([mode, Icon, label]) => (
                 <button key={mode} onClick={() => { setViewMode(mode); setSelectedEntry(null) }}
                   title={label}
                   style={{
@@ -614,40 +614,6 @@ export function SectionEntries({ direction, initialItemId }: SectionProps) {
 
           {/* Content area */}
           <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
-            {/* Grid view */}
-            {viewMode === 'grid' && (
-              <div data-inner-scroll style={{ flex: 1, overflowY: 'auto', padding: '20px 20px 16px' }}>
-                {loading ? (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12, alignItems: 'start' }}>
-                    {Array.from({ length: 12 }).map((_, i) => (
-                      <div key={i} className="skeleton" style={{ height: 140, borderRadius: 6 }} />
-                    ))}
-                  </div>
-                ) : entries.length === 0 ? (
-                  <div className="empty-state">
-                    <div className="empty-state-icon">📝</div>
-                    <p>No entries yet</p>
-                    <p className="empty-state-hint">Start capturing your thoughts, tasks and decisions</p>
-                  </div>
-                ) : (
-                  <motion.div key={`${filterType}-${filterStatus}-${page}`} variants={gridVariants} initial="hidden" animate="visible"
-                    style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12, alignItems: 'start' }}>
-                    {entries.map((entry, i) => (
-                      <motion.div key={entry.id} custom={i} variants={cardGrowAnim}
-                        style={{ originX: 0, outline: selected.has(entry.id) ? '2px solid var(--accent)' : 'none', borderRadius: 8 }}>
-                        <EntryCard
-                          entry={entry} index={i}
-                          onClick={() => selectMode ? toggleSelect(entry.id) : setEditEntry(entry)}
-                          onPin={selectMode ? undefined : e => handlePin(entry, e)}
-                          onDuplicate={selectMode ? undefined : e => handleDuplicate(entry, e)}
-                        />
-                      </motion.div>
-                    ))}
-                  </motion.div>
-                )}
-              </div>
-            )}
-
             {/* Split view */}
             {viewMode === 'split' && (
               <>

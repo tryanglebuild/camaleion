@@ -56,13 +56,15 @@ export function SectionHeader({ title, subtitle, rightSlot, titleDelay = 0.55, t
     <motion.div
       variants={panelRevealVariants}
       style={{
+        height: 48,
         display: 'flex', flexDirection: 'column', flexShrink: 0,
         borderBottom: '1px solid var(--border)',
         background: 'var(--surface-1)',
+        overflow: 'hidden',
       }}
     >
       {accent && <div style={{ height: 3, background: accent, flexShrink: 0 }} />}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: isMobile ? '56px 16px 14px' : '14px 28px' }}>
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: isMobile ? '0 16px' : '0 28px', minHeight: 0 }}>
       <div>
         <h1 className="section-title-lg">
           {titleText}

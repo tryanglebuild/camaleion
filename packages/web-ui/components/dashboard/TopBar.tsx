@@ -2,7 +2,7 @@
 
 import { usePathname } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { LayoutGrid, PanelRight, Plus } from 'lucide-react'
+import { List, PanelRight, Plus } from 'lucide-react'
 import { useLayoutMode } from '@/lib/use-layout-mode'
 import { useState } from 'react'
 import { AddEntryModal } from '@/components/dashboard/AddEntryModal'
@@ -65,13 +65,13 @@ export function TopBar() {
             <motion.button
               whileHover={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}
               onClick={toggle}
-              title={mode === 'grid' ? 'Switch to Split view' : 'Switch to Grid view'}
+              title={mode === 'list' ? 'Switch to Split view' : 'Switch to List view'}
               className="flex items-center gap-1.5 px-2.5 py-1.5 rounded border border-[var(--border)] text-[var(--text-muted)] transition-colors text-[9px] tracking-[0.1em]"
               style={{ fontFamily: 'var(--font-jetbrains-mono)' }}
             >
-              {mode === 'grid'
+              {mode === 'list'
                 ? <><PanelRight size={11} /> SPLIT</>
-                : <><LayoutGrid size={11} /> GRID</>
+                : <><List size={11} /> LIST</>
               }
             </motion.button>
           )}

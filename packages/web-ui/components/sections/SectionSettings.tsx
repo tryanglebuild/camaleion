@@ -1,27 +1,23 @@
 'use client'
-import { motion } from 'framer-motion'
 import { useState, useEffect } from 'react'
 import {
-  Download, Sun, Moon, Database, Zap,
-  FileJson, FileText, CheckCircle, XCircle, Eye, EyeOff, Save,
-  Rocket, CircleDot, AlertCircle, Minus,
+  CheckCircle, XCircle,
+  AlertCircle, Minus, CircleDot,
 } from 'lucide-react'
 import type { SectionProps } from './types'
 import { SectionWrapper, SectionHeader } from './SectionLayout'
 import { useToast } from '@/components/ui/Toaster'
-import { saveClientConfig, reloadSupabase } from '@/lib/supabase'
-import { contentItemVariants } from './sectionVariants'
+import { supabase, saveClientConfig, reloadSupabase } from '@/lib/supabase'
 
 function useTheme() {
-  const [dark, setDark] = useState(false)
-  useEffect(() => { setDark(localStorage.getItem('theme') === 'dark') }, [])
-  const toggle = () => {
-    const next = !dark
-    setDark(next)
-    localStorage.setItem('theme', next ? 'dark' : 'light')
-    document.documentElement.setAttribute('data-theme', next ? 'dark' : '')
+  const [theme, setThemeState] = useState<'light' | 'dark'>('dark')
+  useEffect(() => { setThemeState(localStorage.getItem('theme') === 'light' ? 'light' : 'dark') }, [])
+  const setTheme = (t: 'light' | 'dark') => {
+    setThemeState(t)
+    localStorage.setItem('theme', t)
+    document.documentElement.setAttribute('data-theme', t === 'dark' ? 'dark' : '')
   }
-  return { dark, toggle }
+  return { theme, setTheme }
 }
 
 function useHealth() {
@@ -46,78 +42,13 @@ function StatusDot({ ok }: { ok?: boolean }) {
     : <XCircle size={14} style={{ color: '#EF4444' }} />
 }
 
-function SettingRow({ label, description, children }: { label: string; description?: string; children: React.ReactNode }) {
-  return (
-    <div style={{
-      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      padding: '14px 24px', borderBottom: '1px solid var(--border)', gap: 24,
-    }}>
-      <div style={{ minWidth: 0 }}>
-        <p style={{ fontFamily: 'var(--font-inter)', fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', margin: 0 }}>{label}</p>
-        {description && <p style={{ fontFamily: 'var(--font-inter)', fontSize: 11, color: 'var(--text-muted)', margin: '2px 0 0' }}>{description}</p>}
-      </div>
-      <div style={{ flexShrink: 0 }}>{children}</div>
-    </div>
-  )
-}
-
-function GroupHeader({ title }: { title: string }) {
-  return (
-    <div style={{ padding: '20px 24px 8px', borderBottom: '1px solid var(--border)' }}>
-      <span style={{ fontFamily: 'var(--font-inter)', fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.07em', textTransform: 'uppercase' }}>
-        {title}
-      </span>
-    </div>
-  )
-}
-
-function CredentialField({ label, value, onChange, placeholder }: {
-  label: string; value: string; onChange: (v: string) => void; placeholder?: string
-}) {
-  const [show, setShow] = useState(false)
-  const isKey = label.toLowerCase().includes('key')
-  return (
-    <div style={{ padding: '12px 24px', borderBottom: '1px solid var(--border)' }}>
-      <p style={{ fontFamily: 'var(--font-inter)', fontSize: 11, fontWeight: 500, color: 'var(--text-muted)', margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-        {label}
-      </p>
-      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-        <input
-          type={isKey && !show ? 'password' : 'text'}
-          value={value}
-          onChange={e => onChange(e.target.value)}
-          placeholder={placeholder}
-          style={{
-            width: '100%', background: 'var(--surface-2)', border: '1px solid var(--border)',
-            borderRadius: 6, padding: isKey ? '8px 36px 8px 12px' : '8px 12px',
-            fontFamily: 'var(--font-jetbrains-mono)', fontSize: 12,
-            color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box',
-            transition: 'border-color 0.15s',
-          }}
-          onFocus={e => e.target.style.borderColor = 'var(--accent)'}
-          onBlur={e => e.target.style.borderColor = 'var(--border)'}
-        />
-        {isKey && (
-          <button
-            onClick={() => setShow(v => !v)}
-            style={{
-              position: 'absolute', right: 10, background: 'none', border: 'none',
-              cursor: 'pointer', color: 'var(--text-muted)', padding: 2,
-            }}
-          >
-            {show ? <EyeOff size={13} /> : <Eye size={13} />}
-          </button>
-        )}
-      </div>
-    </div>
-  )
-}
 
 export function SectionSettings({ direction }: SectionProps) {
   const { toast } = useToast()
-  const { dark, toggle } = useTheme()
+  const { theme, setTheme } = useTheme()
   const { status: health, reload: reloadHealth } = useHealth()
   const [exporting, setExporting] = useState<string | null>(null)
+  const [stats, setStats] = useState<{ entries: number; projects: number; people: number } | null>(null)
 
   const [supabaseUrl, setSupabaseUrl]               = useState('')
   const [supabaseAnonKey, setSupabaseAnonKey]       = useState('')
@@ -143,6 +74,12 @@ export function SectionSettings({ direction }: SectionProps) {
         setCredsLoaded(true)
       })
       .catch(() => setCredsLoaded(true))
+
+    Promise.all([
+      supabase.from('entries').select('id', { count: 'exact', head: true }),
+      supabase.from('projects').select('id', { count: 'exact', head: true }),
+      supabase.from('people').select('id', { count: 'exact', head: true }),
+    ]).then(([e, p, pe]) => setStats({ entries: e.count ?? 0, projects: p.count ?? 0, people: pe.count ?? 0 }))
   }, [])
 
   async function saveCredentials() {
@@ -208,202 +145,237 @@ export function SectionSettings({ direction }: SectionProps) {
     setExporting(null)
   }
 
+  async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    try {
+      const text = await file.text()
+      const data = JSON.parse(text)
+      const entries = Array.isArray(data) ? data : data.entries ?? []
+      if (entries.length === 0) { toast('No entries found in file', 'warning'); return }
+      const { error } = await supabase.from('entries').upsert(entries, { onConflict: 'id' })
+      if (error) throw error
+      toast(`Imported ${entries.length} entries`)
+    } catch {
+      toast('Import failed', 'error')
+    }
+    e.target.value = ''
+  }
+
   const canSave   = !!(supabaseUrl && supabaseAnonKey && supabaseServiceKey)
   const canDeploy = !!(supabaseUrl && supabaseAccessToken)
 
+  const inputStyle: React.CSSProperties = {
+    width: '100%', background: 'var(--surface-1)', border: '1px solid var(--border)',
+    borderRadius: 0, padding: '7px 10px', fontFamily: 'var(--font-jetbrains-mono)',
+    fontSize: 11, color: 'var(--text-primary)', outline: 'none', marginBottom: 4,
+    boxSizing: 'border-box',
+  }
+
+  const labelStyle: React.CSSProperties = {
+    fontFamily: 'var(--font-jetbrains-mono)', fontSize: 9, letterSpacing: '0.1em',
+    color: 'var(--text-muted)', textTransform: 'uppercase' as const, marginBottom: 3, display: 'block',
+  }
+
+  const fieldStyle: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 0 }
+
+  const btnOutlineStyle: React.CSSProperties = {
+    background: 'none', border: '1px solid var(--border)', borderRadius: 0,
+    padding: '7px 12px', fontFamily: 'var(--font-jetbrains-mono)', fontSize: 9,
+    letterSpacing: '0.1em', color: 'var(--text-muted)', cursor: 'pointer',
+    textTransform: 'uppercase', width: '100%', transition: 'all 0.15s',
+    textAlign: 'center' as const,
+  }
+
   return (
     <SectionWrapper direction={direction}>
-      <SectionHeader title="Settings" subtitle="Credentials, appearance and data" />
+      <SectionHeader title="Settings" subtitle="Configuration & system" />
+      <div style={{
+        flex: 1, minHeight: 0,
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr',
+        gridTemplateRows: '1fr 1fr',
+        gap: 1,
+        background: 'var(--border)',
+        overflow: 'hidden',
+      }}>
 
-      <div data-inner-scroll style={{ flex: 1, overflowY: 'auto' }}>
-        <div style={{ maxWidth: 640, margin: '0 auto', padding: '0 0 60px' }}>
-
-          {/* ── Credentials ──────────────────────────────────────── */}
-          <motion.div variants={contentItemVariants} initial="hidden" animate="visible">
-            <GroupHeader title="Supabase credentials" />
+        {/* Panel 1: CONNECTION */}
+        <div style={{ background: 'var(--bg-base)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div style={{ height: 3, background: '#0891B2', flexShrink: 0 }} />
+          <div style={{ height: 40, display: 'flex', alignItems: 'center', padding: '0 20px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+            <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 9, letterSpacing: '0.14em', color: 'var(--text-muted)', textTransform: 'uppercase' }}>CONNECTION</span>
+          </div>
+          <div style={{ flex: 1, padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 4, overflowY: 'auto' }}>
             {credsLoaded ? (
               <>
-                <CredentialField
-                  label="Project URL"
-                  value={supabaseUrl}
-                  onChange={setSupabaseUrl}
-                  placeholder="https://xxxxxxxxxxxx.supabase.co"
-                />
-                <CredentialField
-                  label="Anon Key (public)"
-                  value={supabaseAnonKey}
-                  onChange={setSupabaseAnonKey}
-                  placeholder="eyJhbGci…"
-                />
-                <CredentialField
-                  label="Service Role Key (server)"
-                  value={supabaseServiceKey}
-                  onChange={setSupabaseServiceKey}
-                  placeholder="eyJhbGci…"
-                />
-                <CredentialField
-                  label="Access Token (Management API)"
-                  value={supabaseAccessToken}
-                  onChange={setSupabaseAccessToken}
-                  placeholder="sbp_…"
-                />
-                <div style={{ padding: '14px 24px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
-                  <p style={{ fontFamily: 'var(--font-inter)', fontSize: 11, color: 'var(--text-muted)', margin: 0 }}>
-                    Saved to{' '}
-                    <code style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 10, background: 'var(--surface-2)', padding: '1px 5px', borderRadius: 3 }}>
-                      config.json
-                    </code>
-                    {' '}— never committed to git
-                  </p>
-                  <button
-                    onClick={saveCredentials}
-                    disabled={savingCreds || !canSave}
-                    className="btn btn-primary"
-                    style={{ display: 'flex', alignItems: 'center', gap: 6, opacity: (!canSave || savingCreds) ? 0.5 : 1 }}
-                  >
-                    <Save size={12} />
-                    {savingCreds ? 'Saving…' : 'Save & reload'}
-                  </button>
-                </div>
+                <div style={fieldStyle}><label style={labelStyle}>Supabase URL</label><input type="text" placeholder="https://xxx.supabase.co" value={supabaseUrl} onChange={e => setSupabaseUrl(e.target.value)} style={inputStyle} onFocus={e => e.target.style.borderColor = '#0891B2'} onBlur={e => e.target.style.borderColor = 'var(--border)'} /></div>
+                <div style={fieldStyle}><label style={labelStyle}>Anon Key</label><input type="password" placeholder="eyJ…" value={supabaseAnonKey} onChange={e => setSupabaseAnonKey(e.target.value)} style={inputStyle} onFocus={e => e.target.style.borderColor = '#0891B2'} onBlur={e => e.target.style.borderColor = 'var(--border)'} /></div>
+                <div style={fieldStyle}><label style={labelStyle}>Service Role Key</label><input type="password" placeholder="eyJ…" value={supabaseServiceKey} onChange={e => setSupabaseServiceKey(e.target.value)} style={inputStyle} onFocus={e => e.target.style.borderColor = '#0891B2'} onBlur={e => e.target.style.borderColor = 'var(--border)'} /></div>
+                <div style={fieldStyle}><label style={labelStyle}>Access Token</label><input type="password" placeholder="sbp_…" value={supabaseAccessToken} onChange={e => setSupabaseAccessToken(e.target.value)} style={inputStyle} onFocus={e => e.target.style.borderColor = '#0891B2'} onBlur={e => e.target.style.borderColor = 'var(--border)'} /></div>
+                <div style={fieldStyle}><label style={labelStyle}>OpenRouter API Key</label><input type="password" placeholder="sk-or-…" value={openrouterKey} onChange={e => setOpenrouterKey(e.target.value)} style={inputStyle} onFocus={e => e.target.style.borderColor = '#0891B2'} onBlur={e => e.target.style.borderColor = 'var(--border)'} /></div>
+                <button onClick={saveCredentials} disabled={savingCreds || !canSave}
+                  style={{ width: '100%', background: '#0891B2', border: 'none', borderRadius: 0, padding: '8px', color: '#fff', fontFamily: 'var(--font-jetbrains-mono)', fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: canSave && !savingCreds ? 'pointer' : 'not-allowed', opacity: (!canSave || savingCreds) ? 0.5 : 1, marginTop: 4 }}>
+                  {savingCreds ? 'SAVING…' : 'SAVE & RELOAD'}
+                </button>
               </>
             ) : (
-              <div style={{ padding: '20px 24px', display: 'flex', gap: 8, alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--border)', animation: 'pulse-live 1.5s ease-in-out infinite' }} />
                 <span style={{ fontFamily: 'var(--font-inter)', fontSize: 12, color: 'var(--text-muted)' }}>Loading…</span>
               </div>
             )}
-          </motion.div>
-
-          {/* ── Connection status ─────────────────────────────────── */}
-          <motion.div variants={contentItemVariants} initial="hidden" animate="visible" transition={{ delay: 0.05 }}>
-            <GroupHeader title="Connection status" />
-            {[
-              { label: 'Database (Supabase)', icon: Database, ok: health?.supabase },
-              { label: 'Embedding (OpenAI)',  icon: Zap,      ok: health?.embed    },
-            ].map(({ label, icon: Icon, ok }) => (
-              <SettingRow key={label} label={label}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <Icon size={13} style={{ color: 'var(--text-muted)' }} />
-                  <StatusDot ok={ok} />
-                  <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 11, color: ok ? '#22C55E' : ok === false ? '#EF4444' : 'var(--text-muted)' }}>
-                    {ok == null ? 'checking…' : ok ? 'connected' : 'offline'}
-                  </span>
-                </div>
-              </SettingRow>
-            ))}
-            <div style={{ padding: '10px 24px', borderBottom: '1px solid var(--border)' }}>
-              <button
-                onClick={reloadHealth}
-                style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 5, padding: '4px 12px', cursor: 'pointer', fontFamily: 'var(--font-inter)', fontSize: 11, color: 'var(--text-muted)', transition: 'all 0.15s' }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--border-active)'; e.currentTarget.style.color = 'var(--text-primary)' }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)' }}
-              >
-                Re-check
-              </button>
-            </div>
-          </motion.div>
-
-          {/* ── Deploy ───────────────────────────────────────────── */}
-          <motion.div variants={contentItemVariants} initial="hidden" animate="visible" transition={{ delay: 0.08 }}>
-            <GroupHeader title="Deploy to Supabase" />
-            {credsLoaded && (
-              <>
-                <CredentialField
-                  label="OpenRouter API Key"
-                  value={openrouterKey}
-                  onChange={setOpenrouterKey}
-                  placeholder="sk-or-…"
-                />
-                <div style={{ padding: '14px 24px', borderBottom: '1px solid var(--border)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginBottom: deploySteps.length ? 14 : 0 }}>
-                    <p style={{ fontFamily: 'var(--font-inter)', fontSize: 11, color: 'var(--text-muted)', margin: 0 }}>
-                      Applies all migrations, deploys edge functions, and sets the OpenRouter secret.
-                      Requires the Access Token above.
-                    </p>
-                    <button
-                      onClick={runDeploy}
-                      disabled={deploying || !canDeploy}
-                      className="btn btn-primary"
-                      style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, opacity: (!canDeploy || deploying) ? 0.5 : 1 }}
-                    >
-                      <Rocket size={12} />
-                      {deploying ? 'Deploying…' : 'Deploy'}
-                    </button>
-                  </div>
-                  {deploySteps.length > 0 && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginTop: 2 }}>
-                      {deploySteps.map((s, i) => (
-                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          {s.status === 'ok'      && <CheckCircle  size={12} style={{ color: '#22C55E',        flexShrink: 0 }} />}
-                          {s.status === 'error'   && <AlertCircle  size={12} style={{ color: '#EF4444',        flexShrink: 0 }} />}
-                          {s.status === 'skipped' && <Minus        size={12} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />}
-                          {s.status === 'running' && <CircleDot    size={12} style={{ color: 'var(--accent)',   flexShrink: 0 }} />}
-                          <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 10, color: s.status === 'error' ? '#EF4444' : s.status === 'ok' ? 'var(--text-primary)' : 'var(--text-muted)' }}>
-                            {s.name}
-                            {s.message && <span style={{ opacity: 0.7 }}> — {s.message}</span>}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </>
+            {health !== null && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                <div style={{ width: 6, height: 6, borderRadius: '50%', background: health?.supabase ? '#22C55E' : '#EF4444', ...(health?.supabase ? { animation: 'pulse-live 2.5s ease-in-out infinite' } : {}) }} />
+                <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 10, color: 'var(--text-muted)' }}>
+                  {health?.supabase ? 'CONNECTED' : 'DISCONNECTED'}
+                </span>
+              </div>
             )}
-          </motion.div>
+          </div>
+        </div>
 
-          {/* ── Appearance ───────────────────────────────────────── */}
-          <motion.div variants={contentItemVariants} initial="hidden" animate="visible" transition={{ delay: 0.11 }}>
-            <GroupHeader title="Appearance" />
-            <SettingRow label="Theme" description="Switch between light and dark mode">
-              <button
-                onClick={toggle}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 8,
-                  background: 'var(--surface-2)', border: '1px solid var(--border)',
-                  borderRadius: 8, padding: '6px 14px', cursor: 'pointer',
-                  fontFamily: 'var(--font-inter)', fontSize: 12, color: 'var(--text-primary)',
-                  transition: 'border-color 0.15s',
-                }}
-                onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--border-active)'}
-                onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}
-              >
-                {dark ? <Sun size={13} /> : <Moon size={13} />}
-                {dark ? 'Light mode' : 'Dark mode'}
-              </button>
-            </SettingRow>
-          </motion.div>
-
-          {/* ── Export ───────────────────────────────────────────── */}
-          <motion.div variants={contentItemVariants} initial="hidden" animate="visible" transition={{ delay: 0.14 }}>
-            <GroupHeader title="Export data" />
-            <SettingRow label="All entries as JSON" description="Full export with all fields and metadata">
-              <button onClick={() => doExport('json', 'json')} disabled={exporting === 'json'} className="btn btn-secondary"
-                style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, opacity: exporting === 'json' ? 0.6 : 1 }}>
-                <FileJson size={13} />{exporting === 'json' ? 'Exporting…' : 'Download JSON'}
-              </button>
-            </SettingRow>
-            <SettingRow label="All entries as CSV" description="Spreadsheet-compatible format">
-              <button onClick={() => doExport('csv', 'csv')} disabled={exporting === 'csv'} className="btn btn-secondary"
-                style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, opacity: exporting === 'csv' ? 0.6 : 1 }}>
-                <FileText size={13} />{exporting === 'csv' ? 'Exporting…' : 'Download CSV'}
-              </button>
-            </SettingRow>
-            <SettingRow label="Export by type" description="Download only a specific entry type">
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                {['task', 'note', 'decision', 'idea'].map(t => (
-                  <button key={t} onClick={() => doExport('json', t, t)} disabled={!!exporting}
-                    style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 10, padding: '3px 10px', borderRadius: 20, cursor: 'pointer', border: '1px solid var(--border)', background: exporting === t ? 'var(--surface-2)' : 'transparent', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4, opacity: exporting && exporting !== t ? 0.5 : 1, transition: 'all 0.12s' }}
-                    onMouseEnter={e => { if (!exporting) { e.currentTarget.style.borderColor = 'var(--border-active)'; e.currentTarget.style.color = 'var(--text-primary)' }}}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)' }}
-                  >
-                    <Download size={9} />{exporting === t ? '…' : t}
-                  </button>
+        {/* Panel 2: APPEARANCE */}
+        <div style={{ background: 'var(--bg-base)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div style={{ height: 3, background: '#7C3AED', flexShrink: 0 }} />
+          <div style={{ height: 40, display: 'flex', alignItems: 'center', padding: '0 20px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+            <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 9, letterSpacing: '0.14em', color: 'var(--text-muted)', textTransform: 'uppercase' }}>APPEARANCE</span>
+          </div>
+          <div style={{ flex: 1, padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 9, letterSpacing: '0.1em', color: 'var(--text-muted)', textTransform: 'uppercase' }}>THEME</span>
+              <div style={{ display: 'flex', gap: 1 }}>
+                {(['light', 'dark'] as const).map(t => (
+                  <button key={t} onClick={() => setTheme(t)}
+                    style={{
+                      flex: 1, padding: '8px 4px',
+                      background: theme === t ? '#7C3AED' : 'var(--surface-1)',
+                      border: `1px solid ${theme === t ? '#7C3AED' : 'var(--border)'}`,
+                      color: theme === t ? '#fff' : 'var(--text-muted)',
+                      fontFamily: 'var(--font-jetbrains-mono)', fontSize: 9, letterSpacing: '0.1em',
+                      textTransform: 'uppercase', cursor: 'pointer', borderRadius: 0, transition: 'all 0.15s',
+                    }}
+                  >{t}</button>
                 ))}
               </div>
-            </SettingRow>
-          </motion.div>
-
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 9, letterSpacing: '0.1em', color: 'var(--text-muted)', textTransform: 'uppercase' }}>COLOR TOKENS</span>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {[
+                  ['accent', '#2563EB'], ['chat-amber', '#B45309'], ['proj-cyan', '#0891B2'],
+                  ['people-rose', '#E11D48'], ['search-purple', '#7C3AED'], ['status-done', '#16A34A'],
+                  ['status-pending', '#D97706'], ['status-blocked', '#DC2626'],
+                ].map(([name, color]) => (
+                  <div key={name} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                    <div style={{ width: 18, height: 18, background: color }} />
+                    <span style={{ fontSize: 8, fontFamily: 'var(--font-jetbrains-mono)', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                      {name}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
+
+        {/* Panel 3: DATA */}
+        <div style={{ background: 'var(--bg-base)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div style={{ height: 3, background: '#16A34A', flexShrink: 0 }} />
+          <div style={{ height: 40, display: 'flex', alignItems: 'center', padding: '0 20px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+            <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 9, letterSpacing: '0.14em', color: 'var(--text-muted)', textTransform: 'uppercase' }}>DATA</span>
+          </div>
+          <div style={{ flex: 1, padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto' }}>
+            <div style={{ display: 'flex', gap: 20 }}>
+              {([['entries', stats?.entries], ['projects', stats?.projects], ['people', stats?.people]] as [string, number | undefined][]).map(([label, count]) => (
+                <div key={label}>
+                  <div style={{ fontFamily: 'var(--font-space-grotesk)', fontSize: 22, fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1 }}>
+                    {count ?? '—'}
+                  </div>
+                  <div style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 9, letterSpacing: '0.1em', color: 'var(--text-muted)', marginTop: 2, textTransform: 'uppercase' }}>
+                    {label}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <button onClick={() => doExport('json', 'json')} disabled={exporting === 'json'}
+                style={{ ...btnOutlineStyle, opacity: exporting === 'json' ? 0.6 : 1 }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = '#16A34A'; e.currentTarget.style.color = '#16A34A' }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)' }}
+              >{exporting === 'json' ? 'EXPORTING…' : 'EXPORT JSON'}</button>
+              <button onClick={() => doExport('csv', 'csv')} disabled={exporting === 'csv'}
+                style={{ ...btnOutlineStyle, opacity: exporting === 'csv' ? 0.6 : 1 }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = '#16A34A'; e.currentTarget.style.color = '#16A34A' }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)' }}
+              >{exporting === 'csv' ? 'EXPORTING…' : 'EXPORT CSV'}</button>
+              <label style={{ cursor: 'pointer' }}>
+                <input type="file" accept=".json" onChange={handleImport} style={{ display: 'none' }} />
+                <span style={{ ...btnOutlineStyle, display: 'block' }}>IMPORT JSON</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        {/* Panel 4: SYSTEM */}
+        <div style={{ background: 'var(--bg-base)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div style={{ height: 3, background: '#B45309', flexShrink: 0 }} />
+          <div style={{ height: 40, display: 'flex', alignItems: 'center', padding: '0 20px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+            <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 9, letterSpacing: '0.14em', color: 'var(--text-muted)', textTransform: 'uppercase' }}>SYSTEM</span>
+          </div>
+          <div style={{ flex: 1, padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto' }}>
+            {/* Health */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 9, letterSpacing: '0.1em', color: 'var(--text-muted)', textTransform: 'uppercase' }}>HEALTH</span>
+              {[
+                { label: 'Database', ok: health?.supabase },
+                { label: 'Embedding', ok: health?.embed },
+              ].map(({ label, ok }) => (
+                <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <StatusDot ok={ok} />
+                  <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 10, color: ok ? '#22C55E' : ok === false ? '#EF4444' : 'var(--text-muted)' }}>
+                    {label} — {ok == null ? 'checking…' : ok ? 'connected' : 'offline'}
+                  </span>
+                </div>
+              ))}
+              <button onClick={reloadHealth}
+                style={{ ...btnOutlineStyle, width: 'auto', alignSelf: 'flex-start', padding: '5px 10px', marginTop: 2 }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = '#B45309'; e.currentTarget.style.color = '#B45309' }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)' }}
+              >RE-CHECK</button>
+            </div>
+            {/* Deploy */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 9, letterSpacing: '0.1em', color: 'var(--text-muted)', textTransform: 'uppercase' }}>DEPLOY</span>
+              <button onClick={runDeploy} disabled={deploying || !canDeploy}
+                style={{ background: '#B45309', border: 'none', borderRadius: 0, padding: '8px', color: '#fff', fontFamily: 'var(--font-jetbrains-mono)', fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: canDeploy && !deploying ? 'pointer' : 'not-allowed', opacity: (!canDeploy || deploying) ? 0.5 : 1 }}>
+                {deploying ? 'DEPLOYING…' : 'DEPLOY TO SUPABASE'}
+              </button>
+              {deploySteps.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {deploySteps.map((s, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {s.status === 'ok'      && <CheckCircle  size={11} style={{ color: '#22C55E', flexShrink: 0 }} />}
+                      {s.status === 'error'   && <AlertCircle  size={11} style={{ color: '#EF4444', flexShrink: 0 }} />}
+                      {s.status === 'skipped' && <Minus        size={11} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />}
+                      {s.status === 'running' && <CircleDot    size={11} style={{ color: '#B45309', flexShrink: 0 }} />}
+                      <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 10, color: s.status === 'error' ? '#EF4444' : s.status === 'ok' ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                        {s.name}{s.message && <span style={{ opacity: 0.7 }}> — {s.message}</span>}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            {/* Version */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 9, letterSpacing: '0.1em', color: 'var(--text-muted)', textTransform: 'uppercase' }}>VERSION</span>
+              <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 10, color: 'var(--text-muted)' }}>v1.0.0</span>
+            </div>
+          </div>
+        </div>
+
       </div>
     </SectionWrapper>
   )

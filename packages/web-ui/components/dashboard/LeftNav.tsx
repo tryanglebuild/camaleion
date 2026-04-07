@@ -207,7 +207,7 @@ export function LeftNav({ current, onNavigate }: LeftNavProps) {
     >
       {/* ── Logo ────────────────────────────────────────────────── */}
       <div style={{
-        height: 52, flexShrink: 0,
+        height: 48, flexShrink: 0,
         display: 'flex', alignItems: 'center',
         borderBottom: '1px solid var(--border)',
         padding: collapsed ? '0 12px' : '0 14px',

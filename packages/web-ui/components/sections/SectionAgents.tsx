@@ -4,9 +4,9 @@ import type { RealtimeChannel } from '@supabase/supabase-js'
 import { motion, AnimatePresence } from 'framer-motion'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { Bot } from 'lucide-react'
+import { Bot, Trash2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import { SectionWrapper } from './SectionLayout'
+import { SectionWrapper, SectionHeader } from './SectionLayout'
 import type { SectionProps } from './types'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -285,16 +285,20 @@ function MessageBubble({ msg, agents }: { msg: Message; agents: Agent[] }) {
 
 // ── SessionItem ───────────────────────────────────────────────────────────────
 
-function SessionItem({ session, active, onClick }: { session: Session; active: boolean; onClick: () => void }) {
+function SessionItem({ session, active, onClick, onEnd, onDelete }: {
+  session: Session; active: boolean; onClick: () => void
+  onEnd: (id: string) => void; onDelete: (id: string) => void
+}) {
   const isLive = session.status === 'active'
   return (
-    <button
+    <div
+      className="group"
       onClick={onClick}
-      onMouseEnter={e => { if (!active) (e.currentTarget as HTMLButtonElement).style.background = 'var(--surface-1)' }}
-      onMouseLeave={e => { if (!active) (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}
+      onMouseEnter={e => { if (!active) (e.currentTarget as HTMLDivElement).style.background = 'var(--surface-1)' }}
+      onMouseLeave={e => { if (!active) (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}
       style={{
         width: '100%', textAlign: 'left', background: active ? 'var(--surface-1)' : 'transparent',
-        border: 'none', borderBottom: '1px solid var(--border)',
+        borderBottom: '1px solid var(--border)',
         borderLeft: active ? '3px solid var(--accent)' : '3px solid transparent',
         padding: '10px 14px',
         cursor: 'pointer',
@@ -321,16 +325,36 @@ function SessionItem({ session, active, onClick }: { session: Session; active: b
       }}>
         {formatDate(session.started_at)} {formatTime(session.started_at)}
       </span>
-    </button>
+      {/* Hover-reveal actions */}
+      <div className="opacity-0 group-hover:opacity-100" style={{ display: 'flex', gap: 4, marginTop: 2, transition: 'opacity 0.15s' }}>
+        {session.status === 'active' && (
+          <button onClick={e => { e.stopPropagation(); onEnd(session.id) }}
+            style={{ padding: '2px 7px', fontSize: 9, fontFamily: 'var(--font-jetbrains-mono)', letterSpacing: '0.1em',
+              border: '1px solid var(--border)', background: 'none', color: 'var(--text-muted)', cursor: 'pointer', borderRadius: 2, transition: 'color 0.12s,border-color 0.12s' }}
+            onMouseEnter={e => { e.currentTarget.style.color = '#22C55E'; e.currentTarget.style.borderColor = '#22C55E' }}
+            onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border)' }}
+          >END</button>
+        )}
+        <button onClick={e => { e.stopPropagation(); onDelete(session.id) }}
+          style={{ padding: '2px 7px', fontSize: 9, fontFamily: 'var(--font-jetbrains-mono)', letterSpacing: '0.1em',
+            border: '1px solid var(--border)', background: 'none', color: 'var(--text-muted)', cursor: 'pointer', borderRadius: 2, transition: 'color 0.12s,border-color 0.12s' }}
+          onMouseEnter={e => { e.currentTarget.style.color = '#EF4444'; e.currentTarget.style.borderColor = '#EF4444' }}
+          onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border)' }}
+        >×</button>
+      </div>
+    </div>
   )
 }
 
 // ── AgentRosterItem ───────────────────────────────────────────────────────────
 
-function AgentRosterItem({ agent, selected, onClick }: { agent: Agent; selected: boolean; onClick: () => void }) {
+function AgentRosterItem({ agent, selected, onClick, onDelete }: {
+  agent: Agent; selected: boolean; onClick: () => void; onDelete: (id: string) => void
+}) {
   const color = agent.color ?? agentColor(agent.name)
   return (
     <button
+      className="group"
       onClick={onClick}
       onMouseEnter={e => { if (!selected) (e.currentTarget as HTMLButtonElement).style.background = 'var(--surface-1)' }}
       onMouseLeave={e => { if (!selected) (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}
@@ -351,11 +375,22 @@ function AgentRosterItem({ agent, selected, onClick }: { agent: Agent; selected:
         </div>
         <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{agent.role}</div>
       </div>
-      <span style={{
-        width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
-        background: color,
-        opacity: agent.status === 'active' ? 1 : 0.35,
-      }} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+        <button
+          className="opacity-0 group-hover:opacity-100"
+          onClick={e => { e.stopPropagation(); onDelete(agent.id) }}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 2, flexShrink: 0, transition: 'opacity 0.15s,color 0.15s' }}
+          onMouseEnter={e => e.currentTarget.style.color = '#EF4444'}
+          onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
+        >
+          <Trash2 size={11} />
+        </button>
+        <span style={{
+          width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
+          background: color,
+          opacity: agent.status === 'active' ? 1 : 0.35,
+        }} />
+      </div>
     </button>
   )
 }
@@ -397,162 +432,170 @@ function AgentDetail({ agent, onSave }: { agent: Agent; onSave: (a: Agent) => vo
   }
 
   return (
-    <div style={{ padding: '24px 24px 0' }}>
-      {/* Agent header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
-        <div style={{
-          width: 44, height: 44, borderRadius: '50%',
-          background: color,
-          boxShadow: `0 0 0 2px var(--bg-base), 0 0 0 4px ${color}`,
-          flexShrink: 0,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
-          <span style={{ fontSize: 18, color: '#fff', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
-            {agent.name.charAt(0).toUpperCase()}
-          </span>
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 22, fontWeight: 600, color: 'var(--text-primary)' }}>
-              {agent.name}
-            </span>
-            <span style={{
-              fontSize: 11, fontWeight: 500,
-              color: color,
-              background: `${color}22`,
-              borderRadius: 12, padding: '3px 10px',
-            }}>
-              {agent.status}
-            </span>
-            <button
-              onClick={toggleStatus}
-              style={{
-                background: 'none', border: '1px solid var(--border)',
-                borderRadius: 4, padding: '3px 8px',
-                cursor: 'pointer', fontSize: 11, color: 'var(--text-muted)',
-              }}
-            >
-              Toggle
-            </button>
-          </div>
-          <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4 }}>{agent.role}</div>
-        </div>
-      </div>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+      {/* Color bar */}
+      <div style={{ height: 3, background: color, flexShrink: 0 }} />
 
-      {/* System prompt panel */}
-      <div style={{ paddingBottom: 24 }}>
-        {/* Panel header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-          <span style={{
-            fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: '0.06em',
-            color: 'var(--text-muted)', textTransform: 'uppercase',
+      <div style={{ padding: '24px 24px 0', flex: 1, overflowY: 'auto' }}>
+        {/* Agent header */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
+          <div style={{
+            width: 44, height: 44, borderRadius: '50%',
+            background: color,
+            boxShadow: `0 0 0 2px var(--bg-base), 0 0 0 4px ${color}`,
+            flexShrink: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            System Prompt
-          </span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
-            <button
-              onClick={() => setMode('view')}
-              style={{
-                background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px',
-                fontWeight: mode === 'view' ? 500 : 400,
-                color: mode === 'view' ? 'var(--text-primary)' : 'var(--text-muted)',
-                fontSize: 13,
-              }}
-            >
-              VIEW
-            </button>
-            <span style={{ color: 'var(--border)', userSelect: 'none' }}>|</span>
-            <button
-              onClick={() => setMode('edit')}
-              style={{
-                background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px',
-                fontWeight: mode === 'edit' ? 500 : 400,
-                color: mode === 'edit' ? 'var(--text-primary)' : 'var(--text-muted)',
-                fontSize: 13,
-              }}
-            >
-              EDIT
-            </button>
+            <span style={{ fontSize: 18, color: '#fff', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
+              {agent.name.charAt(0).toUpperCase()}
+            </span>
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <span style={{ fontFamily: 'var(--font-space-grotesk)', fontSize: 18, fontWeight: 600, color: 'var(--text-primary)' }}>
+                {agent.name}
+              </span>
+              <span style={{
+                fontSize: 11, fontWeight: 500,
+                color: color,
+                background: `${color}22`,
+                borderRadius: 12, padding: '3px 10px',
+              }}>
+                {agent.status}
+              </span>
+              <button
+                onClick={toggleStatus}
+                style={{
+                  background: 'none', border: '1px solid var(--border)',
+                  borderRadius: 4, padding: '3px 8px',
+                  cursor: 'pointer', fontSize: 11, color: 'var(--text-muted)',
+                }}
+              >
+                Toggle
+              </button>
+            </div>
+            <div style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>{agent.role}</div>
           </div>
         </div>
 
-        <AnimatePresence mode="wait">
-          {mode === 'view' ? (
-            <motion.div
-              key="view"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1, background: flashSave ? `var(--accent)14` : 'var(--surface-1)' }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.18 }}
-              style={{
-                border: '1px solid var(--border)',
-                borderRadius: 0,
-                padding: 20,
-              }}
-            >
-              <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
-                {agent.system_prompt}
-              </ReactMarkdown>
-            </motion.div>
-          ) : (
-            <motion.div
-              key="edit"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.18 }}
-            >
-              <textarea
-                value={prompt}
-                onChange={e => setPrompt(e.target.value)}
-                rows={20}
+        {/* System prompt panel */}
+        <div style={{ paddingBottom: 24 }}>
+          {/* Panel header */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <span style={{
+              fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: '0.06em',
+              color: 'var(--text-muted)', textTransform: 'uppercase',
+            }}>
+              System Prompt
+            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
+              <button
+                onClick={() => setMode('view')}
                 style={{
-                  width: '100%', resize: 'vertical',
-                  background: 'var(--surface-2)', color: 'var(--text-primary)',
-                  border: '1px solid var(--border)',
-                  borderLeft: '3px solid var(--accent)',
-                  borderRadius: 0,
-                  padding: '10px 14px',
-                  fontSize: 13, fontFamily: 'var(--font-mono)',
-                  lineHeight: 1.6, outline: 'none', boxSizing: 'border-box',
+                  background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px',
+                  fontWeight: mode === 'view' ? 500 : 400,
+                  color: mode === 'view' ? 'var(--text-primary)' : 'var(--text-muted)',
+                  fontSize: 13,
                 }}
-              />
-              <div style={{ display: 'flex', gap: 8, marginTop: 8, justifyContent: 'flex-end' }}>
-                <button
-                  onClick={() => { setPrompt(agent.system_prompt); setMode('view') }}
+              >
+                VIEW
+              </button>
+              <span style={{ color: 'var(--border)', userSelect: 'none' }}>|</span>
+              <button
+                onClick={() => setMode('edit')}
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px',
+                  fontWeight: mode === 'edit' ? 500 : 400,
+                  color: mode === 'edit' ? 'var(--text-primary)' : 'var(--text-muted)',
+                  fontSize: 13,
+                }}
+              >
+                EDIT
+              </button>
+            </div>
+          </div>
+
+          <AnimatePresence mode="wait">
+            {mode === 'view' ? (
+              <motion.div
+                key="view"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1, background: flashSave ? `var(--accent)14` : 'transparent' }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.18 }}
+              >
+                <pre style={{
+                  fontFamily: 'var(--font-jetbrains-mono)', fontSize: 11,
+                  color: 'var(--text-secondary)', lineHeight: 1.6,
+                  whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                  background: 'var(--surface-2)', border: '1px solid var(--border)',
+                  padding: '12px 14px', margin: 0, overflow: 'auto',
+                }}>
+                  {agent.system_prompt}
+                </pre>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="edit"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.18 }}
+              >
+                <textarea
+                  value={prompt}
+                  onChange={e => setPrompt(e.target.value)}
+                  rows={20}
                   style={{
-                    background: 'none', border: 'none',
-                    padding: '6px 12px', cursor: 'pointer',
-                    fontSize: 13, color: 'var(--text-muted)',
+                    width: '100%', resize: 'vertical',
+                    background: 'var(--surface-2)', color: 'var(--text-primary)',
+                    border: '1px solid var(--border)',
+                    borderLeft: '3px solid var(--accent)',
+                    borderRadius: 0,
+                    padding: '10px 14px',
+                    fontSize: 13, fontFamily: 'var(--font-mono)',
+                    lineHeight: 1.6, outline: 'none', boxSizing: 'border-box',
                   }}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSave}
-                  disabled={saving}
-                  style={{
-                    background: 'var(--accent)', border: 'none', borderRadius: 4,
-                    padding: '6px 16px', cursor: 'pointer',
-                    fontSize: 13, color: '#fff', fontWeight: 500,
-                    opacity: saving ? 0.6 : 1,
-                  }}
-                >
-                  {saving ? 'Saving...' : 'Save'}
-                </button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+                />
+                <div style={{ display: 'flex', gap: 8, marginTop: 8, justifyContent: 'flex-end' }}>
+                  <button
+                    onClick={() => { setPrompt(agent.system_prompt); setMode('view') }}
+                    style={{
+                      background: 'none', border: 'none',
+                      padding: '6px 12px', cursor: 'pointer',
+                      fontSize: 13, color: 'var(--text-muted)',
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSave}
+                    disabled={saving}
+                    style={{
+                      background: 'var(--accent)', border: 'none', borderRadius: 4,
+                      padding: '6px 16px', cursor: 'pointer',
+                      fontSize: 13, color: '#fff', fontWeight: 500,
+                      opacity: saving ? 0.6 : 1,
+                    }}
+                  >
+                    {saving ? 'Saving...' : 'Save'}
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
     </div>
   )
 }
 
+const PRESET_COLORS = ['#2563EB', '#7C3AED', '#DB2777', '#059669', '#D97706', '#0891B2', '#DC2626', '#4F46E5']
+
 // ── Main section ──────────────────────────────────────────────────────────────
 
 export function SectionAgents({ direction }: SectionProps) {
-  const [view, setView] = useState<'sessions' | 'registry'>('sessions')
+  const [tab, setTab] = useState<'sessions' | 'roster'>('sessions')
   const [sessions, setSessions] = useState<Session[]>([])
   const [selectedSession, setSelectedSession] = useState<string | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
@@ -562,6 +605,13 @@ export function SectionAgents({ direction }: SectionProps) {
   const [loadingMessages, setLoadingMessages] = useState(false)
   const chatEndRef = useRef<HTMLDivElement>(null)
   const channelRef = useRef<RealtimeChannel | null>(null)
+
+  // Create form state
+  const [showCreateForm, setShowCreateForm] = useState(false)
+  const [createName, setCreateName] = useState('')
+  const [createRole, setCreateRole] = useState('')
+  const [createPrompt, setCreatePrompt] = useState('')
+  const [createColor, setCreateColor] = useState(PRESET_COLORS[0])
 
   // ── Load sessions ──────────────────────────────────────────────
   const loadSessions = useCallback(async () => {
@@ -682,6 +732,39 @@ export function SectionAgents({ direction }: SectionProps) {
   const selectedAgentData = agents.find(a => a.id === selectedAgent)
   const activeAgentCount = agents.filter(a => a.status === 'active').length
 
+  async function handleEndSession(id: string) {
+    await supabase.from('agent_sessions').update({ status: 'completed', ended_at: new Date().toISOString() }).eq('id', id)
+    setSessions(prev => prev.map(s => s.id === id ? { ...s, status: 'completed' as Session['status'], ended_at: new Date().toISOString() } : s))
+  }
+
+  async function handleDeleteSession(id: string) {
+    setSessions(prev => prev.filter(s => s.id !== id))
+    if (selectedSession === id) setSelectedSession(null)
+    await supabase.from('agent_sessions').delete().eq('id', id)
+  }
+
+  async function handleDeleteAgent(id: string) {
+    setAgents(prev => prev.filter(a => a.id !== id))
+    if (selectedAgent === id) setSelectedAgent(null)
+    await supabase.from('agents').delete().eq('id', id)
+  }
+
+  async function handleCreateAgent() {
+    if (!createName.trim()) return
+    const { data } = await supabase.from('agents').insert({
+      name: createName.trim(),
+      role: createRole.trim() || 'Agent',
+      system_prompt: createPrompt.trim(),
+      color: createColor,
+      status: 'active',
+    }).select().single()
+    if (data) {
+      setAgents(prev => [...prev, data as Agent])
+      setCreateName(''); setCreateRole(''); setCreatePrompt(''); setCreateColor(PRESET_COLORS[0])
+      setShowCreateForm(false)
+    }
+  }
+
   function groupByDate(msgs: Message[]) {
     const groups: { date: string; messages: Message[] }[] = []
     for (const msg of msgs) {
@@ -695,45 +778,39 @@ export function SectionAgents({ direction }: SectionProps) {
 
   return (
     <SectionWrapper direction={direction}>
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+      <SectionHeader title="CE.AGENTS" />
+      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
 
         {/* ── CommandBar ──────────────────────────────────────────── */}
         <div style={{
-          height: 48, flexShrink: 0,
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          background: 'var(--surface-1)',
+          display: 'flex', alignItems: 'center',
+          height: 36, padding: '0 20px', gap: 8,
           borderBottom: '1px solid var(--border)',
-          paddingRight: 16,
+          background: 'var(--surface-1)',
+          flexShrink: 0,
         }}>
-          {/* View tabs */}
-          <div style={{ display: 'flex', height: '100%' }}>
-            {(['sessions', 'registry'] as const).map(v => (
-              <button
-                key={v}
-                onClick={() => setView(v)}
-                style={{
-                  height: '100%', padding: '0 16px',
-                  background: 'none', border: 'none',
-                  borderBottom: view === v ? '2px solid var(--accent)' : '2px solid transparent',
-                  cursor: 'pointer',
-                  fontSize: 12, letterSpacing: '0.08em', textTransform: 'uppercase',
-                  fontWeight: view === v ? 500 : 400,
-                  color: view === v ? 'var(--text-primary)' : 'var(--text-secondary)',
-                  transition: 'color var(--duration-sm)',
-                }}
-              >
-                {v}
-              </button>
-            ))}
-          </div>
-
+          {(['sessions', 'roster'] as const).map(t => (
+            <button key={t} onClick={() => setTab(t)}
+              style={{
+                padding: '4px 10px',
+                background: tab === t ? 'var(--surface-3)' : 'transparent',
+                border: `1px solid ${tab === t ? 'var(--border-active)' : 'var(--border)'}`,
+                borderRadius: 3, cursor: 'pointer',
+                fontFamily: 'var(--font-jetbrains-mono)', fontSize: 9,
+                letterSpacing: '0.12em', textTransform: 'uppercase' as const,
+                color: tab === t ? 'var(--text-primary)' : 'var(--text-muted)',
+                transition: 'all 0.12s',
+              }}
+            >{t === 'sessions' ? 'SESSIONS' : 'ROSTER'}</button>
+          ))}
           {/* Active agents pill */}
           <div style={{
+            marginLeft: 'auto',
             display: 'flex', alignItems: 'center', gap: 6,
             background: 'var(--surface-2)',
             border: '1px solid var(--border)',
-            borderRadius: 20, padding: '4px 12px',
-            fontSize: 12, color: 'var(--text-secondary)',
+            borderRadius: 20, padding: '3px 10px',
+            fontSize: 11, color: 'var(--text-secondary)',
           }}>
             <span style={{ color: '#22C55E', fontSize: 10 }}>●</span>
             {activeAgentCount} active
@@ -743,7 +820,7 @@ export function SectionAgents({ direction }: SectionProps) {
         {/* ── View panels ─────────────────────────────────────────── */}
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
           <AnimatePresence mode="wait">
-            {view === 'sessions' ? (
+            {tab === 'sessions' ? (
               <motion.div
                 key="sessions"
                 initial={{ opacity: 0 }}
@@ -760,14 +837,6 @@ export function SectionAgents({ direction }: SectionProps) {
                   display: 'flex', flexDirection: 'column',
                   overflow: 'hidden',
                 }}>
-                  <div style={{
-                    padding: '12px 16px 8px',
-                    fontSize: 10, fontFamily: 'var(--font-mono)',
-                    color: 'var(--text-muted)', textTransform: 'uppercase',
-                    letterSpacing: '0.06em', flexShrink: 0,
-                  }}>
-                    Sessions
-                  </div>
                   <div style={{ flex: 1, overflowY: 'auto' }}>
                     {loadingSessions ? (
                       <div style={{ padding: '16px', fontSize: 13, color: 'var(--text-muted)' }}>Loading...</div>
@@ -782,6 +851,8 @@ export function SectionAgents({ direction }: SectionProps) {
                           session={s}
                           active={s.id === selectedSession}
                           onClick={() => setSelectedSession(s.id)}
+                          onEnd={handleEndSession}
+                          onDelete={handleDeleteSession}
                         />
                       ))
                     )}
@@ -874,7 +945,7 @@ export function SectionAgents({ direction }: SectionProps) {
               </motion.div>
             ) : (
               <motion.div
-                key="registry"
+                key="roster"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
@@ -889,14 +960,51 @@ export function SectionAgents({ direction }: SectionProps) {
                   display: 'flex', flexDirection: 'column',
                   overflow: 'hidden',
                 }}>
-                  <div style={{
-                    padding: '12px 16px 8px',
-                    fontSize: 10, fontFamily: 'var(--font-mono)',
-                    color: 'var(--text-muted)', textTransform: 'uppercase',
-                    letterSpacing: '0.06em', flexShrink: 0,
-                  }}>
-                    Agents
-                  </div>
+                  {/* NEW AGENT trigger */}
+                  <button onClick={() => setShowCreateForm(v => !v)}
+                    style={{
+                      width: '100%', height: 32, background: 'none',
+                      border: `1px dashed ${showCreateForm ? 'var(--border-active)' : 'var(--border)'}`,
+                      borderRadius: 0, cursor: 'pointer',
+                      fontFamily: 'var(--font-jetbrains-mono)', fontSize: 9, letterSpacing: '0.12em',
+                      color: showCreateForm ? 'var(--text-primary)' : 'var(--text-muted)',
+                      textTransform: 'uppercase', transition: 'all 0.15s', flexShrink: 0,
+                    }}>
+                    + NEW AGENT
+                  </button>
+
+                  {/* Inline create form */}
+                  <AnimatePresence>
+                    {showCreateForm && (
+                      <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2 }} style={{ overflow: 'hidden', borderBottom: '1px solid var(--border)', background: 'var(--surface-2)', flexShrink: 0 }}>
+                        <div style={{ borderTop: `3px solid ${createColor}` }} />
+                        <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          <input placeholder="name" value={createName} onChange={e => setCreateName(e.target.value)}
+                            style={{ width: '100%', background: 'var(--surface-1)', border: '1px solid var(--border)', borderRadius: 2, padding: '6px 8px', fontFamily: 'var(--font-inter)', fontSize: 12, color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box' as const }} />
+                          <input placeholder="role" value={createRole} onChange={e => setCreateRole(e.target.value)}
+                            style={{ width: '100%', background: 'var(--surface-1)', border: '1px solid var(--border)', borderRadius: 2, padding: '6px 8px', fontFamily: 'var(--font-inter)', fontSize: 12, color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box' as const }} />
+                          <textarea placeholder="system_prompt" value={createPrompt} onChange={e => setCreatePrompt(e.target.value)} rows={4}
+                            style={{ width: '100%', background: 'var(--surface-1)', border: '1px solid var(--border)', borderRadius: 2, padding: '6px 8px', fontFamily: 'var(--font-jetbrains-mono)', fontSize: 11, color: 'var(--text-primary)', outline: 'none', resize: 'vertical', boxSizing: 'border-box' as const }} />
+                          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                            {PRESET_COLORS.map(c => (
+                              <button key={c} onClick={() => setCreateColor(c)}
+                                style={{ width: 18, height: 18, borderRadius: '50%', background: c, border: 'none', cursor: 'pointer',
+                                  outline: createColor === c ? '2px solid var(--text-primary)' : 'none', outlineOffset: 2 }} />
+                            ))}
+                          </div>
+                          <button onClick={handleCreateAgent} disabled={!createName.trim()}
+                            style={{ background: createColor, border: 'none', borderRadius: 2, padding: '6px',
+                              color: '#fff', fontFamily: 'var(--font-jetbrains-mono)', fontSize: 9, letterSpacing: '0.1em',
+                              cursor: createName.trim() ? 'pointer' : 'not-allowed',
+                              opacity: createName.trim() ? 1 : 0.5, textTransform: 'uppercase' as const }}>
+                            CREATE
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
                   <div style={{ flex: 1, overflowY: 'auto' }}>
                     {agents.length === 0 ? (
                       <div style={{ padding: '16px', fontSize: 13, color: 'var(--text-muted)' }}>
@@ -909,6 +1017,7 @@ export function SectionAgents({ direction }: SectionProps) {
                           agent={a}
                           selected={a.id === selectedAgent}
                           onClick={() => setSelectedAgent(a.id)}
+                          onDelete={handleDeleteAgent}
                         />
                       ))
                     )}
@@ -916,7 +1025,7 @@ export function SectionAgents({ direction }: SectionProps) {
                 </div>
 
                 {/* Right panel — agent detail */}
-                <div style={{ flex: 1, overflowY: 'auto', background: 'var(--bg-base)' }}>
+                <div style={{ flex: 1, overflow: 'hidden', background: 'var(--bg-base)', display: 'flex', flexDirection: 'column' }}>
                   {selectedAgentData ? (
                     <AgentDetail
                       agent={selectedAgentData}
@@ -924,7 +1033,7 @@ export function SectionAgents({ direction }: SectionProps) {
                     />
                   ) : (
                     <div style={{
-                      height: '100%', display: 'flex', flexDirection: 'column',
+                      flex: 1, display: 'flex', flexDirection: 'column',
                       alignItems: 'center', justifyContent: 'center',
                       color: 'var(--text-muted)', gap: 12,
                     }}>

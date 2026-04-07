@@ -1,11 +1,27 @@
 'use client'
 import { motion } from 'framer-motion'
 import { useState, useEffect, useCallback } from 'react'
-import { X, Mail, Globe, AtSign } from 'lucide-react'
+import { X, Mail, Globe, AtSign, Copy, Check } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import type { SectionProps } from './types'
 import { supabase } from '@/lib/supabase'
 import { listVariants, rowVariants } from '@/lib/animation-variants'
 import { SectionWrapper, SectionHeader } from './SectionLayout'
+
+function stripMd(text: string): string {
+  return text
+    .replace(/#{1,6}\s+/g, '')
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/\*(.+?)\*/g, '$1')
+    .replace(/__(.+?)__/g, '$1')
+    .replace(/_(.+?)_/g, '$1')
+    .replace(/`{1,3}[^`]*`{1,3}/g, '')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/^[-*+]\s+/gm, '')
+    .replace(/^\d+\.\s+/gm, '')
+    .trim()
+}
 
 interface PostDraft {
   id: string
@@ -61,6 +77,15 @@ export function SectionGenerate({ direction }: SectionProps) {
   const [selected, setSelected] = useState<PostDraft | null>(null)
   const [filterPlatform, setFilterPlatform] = useState('')
   const [hoveredId, setHoveredId] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
+
+  function handleCopy() {
+    if (!selected?.content) return
+    navigator.clipboard.writeText(selected.content).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1800)
+    })
+  }
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -246,8 +271,17 @@ export function SectionGenerate({ direction }: SectionProps) {
                         color: 'var(--text-primary)', margin: 0, lineHeight: 1.4,
                         display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
                       }}>
-                        {post.title}
+                        {stripMd(post.title)}
                       </p>
+                      {post.content && (
+                        <p style={{
+                          fontFamily: 'var(--font-inter)', fontSize: 11,
+                          color: 'var(--text-muted)', margin: '4px 0 0', lineHeight: 1.4,
+                          display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+                        }}>
+                          {stripMd(post.content)}
+                        </p>
+                      )}
                     </motion.button>
                   )
                 })}
@@ -288,12 +322,30 @@ export function SectionGenerate({ direction }: SectionProps) {
                           <X size={13} />
                         </button>
                       </div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                       <h2 style={{
                         fontFamily: 'var(--font-space-grotesk)', fontSize: 18, fontWeight: 600,
-                        color: 'var(--text-primary)', margin: '0 0 8px 0', lineHeight: 1.3,
+                        color: 'var(--text-primary)', margin: 0, lineHeight: 1.3,
                       }}>
                         {selected.title}
                       </h2>
+                      <button
+                        onClick={handleCopy}
+                        title="Copy content"
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 4,
+                          padding: '4px 9px', borderRadius: 4, flexShrink: 0,
+                          background: copied ? 'rgba(22,163,74,0.12)' : 'var(--surface-2)',
+                          border: `1px solid ${copied ? '#16A34A' : 'var(--border)'}`,
+                          cursor: 'pointer', transition: 'all 0.15s',
+                          fontFamily: 'var(--font-jetbrains-mono)', fontSize: 9,
+                          letterSpacing: '0.1em', color: copied ? '#16A34A' : 'var(--text-muted)',
+                        }}
+                      >
+                        {copied ? <Check size={10} /> : <Copy size={10} />}
+                        {copied ? 'COPIED' : 'COPY'}
+                      </button>
+                      </div>
                       <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 11, color: 'var(--text-muted)' }}>
                         {fmtDateTime(selected.created_at)}
                       </span>
@@ -301,12 +353,14 @@ export function SectionGenerate({ direction }: SectionProps) {
 
                     {/* Scrollable content */}
                     <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 20 }}>
-                      <p style={{
+                      <div style={{
                         fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.9,
-                        whiteSpace: 'pre-wrap', margin: 0, flex: 1,
+                        flex: 1,
                       }}>
-                        {selected.content ?? 'No content.'}
-                      </p>
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          {selected.content ?? 'No content.'}
+                        </ReactMarkdown>
+                      </div>
                       {selected.tags && selected.tags.length > 0 && (
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
                           {selected.tags.map(tag => (

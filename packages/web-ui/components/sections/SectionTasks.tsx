@@ -62,9 +62,9 @@ function TaskCard({
         {/* Drag handle — visible only on group hover */}
         <button
           {...attributes} {...listeners}
-          className="group-hover:opacity-100"
+          className="opacity-0 group-hover:opacity-100"
           style={{
-            opacity: 0, transition: 'opacity 0.15s',
+            transition: 'opacity 0.15s',
             marginTop: 1, cursor: 'grab', color: 'var(--text-muted)',
             flexShrink: 0, background: 'none', border: 'none', padding: 1,
           }}
@@ -83,9 +83,9 @@ function TaskCard({
             {/* Edit pencil — visible on group hover */}
             <button
               onClick={() => onEdit(entry)}
-              className="group-hover:opacity-100"
+              className="opacity-0 group-hover:opacity-100"
               style={{
-                opacity: 0, transition: 'opacity 0.15s',
+                transition: 'opacity 0.15s',
                 flexShrink: 0, color: 'var(--text-muted)',
                 background: 'none', border: 'none', cursor: 'pointer', padding: 2,
               }}
@@ -113,11 +113,12 @@ function TaskCard({
         {/* Delete — visible on group hover, turns red */}
         <button
           onClick={() => onDelete(entry.id)}
-          className="group-hover:opacity-100"
+          className="opacity-0 group-hover:opacity-100"
           style={{
-            opacity: 0, transition: 'opacity 0.15s, color 0.15s',
+            transition: 'opacity 0.15s, color 0.15s',
             flexShrink: 0, color: 'var(--text-muted)',
             background: 'none', border: 'none', cursor: 'pointer', padding: 2, borderRadius: 3,
+            pointerEvents: 'auto',
           }}
           onMouseEnter={e => (e.currentTarget.style.color = '#EF4444')}
           onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
@@ -150,7 +151,7 @@ function KanbanColumn({
   const { setNodeRef, isOver } = useDroppable({ id: col.id })
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
       {/* Column header — colored top border + count pill */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 7,
@@ -369,10 +370,10 @@ export function SectionTasks({ direction }: SectionProps) {
         <motion.div
           variants={listVariants} initial="hidden" animate="visible"
           data-inner-scroll
-          style={{ display: 'flex', gap: 14, flex: 1, minHeight: 0, padding: '16px 20px' }}
+          style={{ display: 'flex', gap: 14, flex: 1, minHeight: 0, padding: '16px 20px', overflowX: 'auto', overflowY: 'hidden' }}
         >
           {COLUMNS.map(col => (
-            <motion.div key={col.id} variants={rowVariants} style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+            <motion.div key={col.id} variants={rowVariants} style={{ flex: 1, minWidth: 200, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
               <KanbanColumn
                 col={col}
                 entries={grouped[col.id] ?? []}

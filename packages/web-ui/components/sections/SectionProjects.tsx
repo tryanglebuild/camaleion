@@ -318,7 +318,7 @@ export function SectionProjects({ direction, onNavigateTo }: SectionProps) {
         {/* ── Grid — scrollable ──────────────────────────────────── */}
         <div data-inner-scroll style={{ flex: 1, overflowY: 'auto', padding: '20px 32px' }}>
           {loading ? (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14, alignItems: 'start' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14, alignItems: 'stretch' }}>
               {Array.from({ length: 6 }).map((_, i) => (
                 <div key={i} className="skeleton" style={{ height: 140, borderRadius: 8 }} />
               ))}
@@ -334,7 +334,7 @@ export function SectionProjects({ direction, onNavigateTo }: SectionProps) {
               variants={gridVariants}
               initial="hidden"
               animate="visible"
-              style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14, alignItems: 'start', paddingBottom: 20 }}
+              style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14, alignItems: 'stretch', gridAutoRows: '1fr', paddingBottom: 20 }}
             >
               {projects.map((p, i) => {
                 const sc = STATUS_COLOR[p.status] ?? '#52525B'
@@ -401,6 +401,11 @@ export function SectionProjects({ direction, onNavigateTo }: SectionProps) {
                             {s}
                           </span>
                         ))}
+                        {(!p.stack || p.stack.length === 0) && (
+                          <span style={{ fontFamily: 'var(--font-inter)', fontSize: 9, color: 'var(--text-muted)', opacity: 0.5, fontStyle: 'italic' }}>
+                            No stack
+                          </span>
+                        )}
                         {(p.stack?.length ?? 0) > 3 && (
                           <span style={{ fontFamily: 'var(--font-inter)', fontSize: 9, color: 'var(--text-muted)' }}>
                             +{(p.stack?.length ?? 0) - 3}
@@ -409,16 +414,17 @@ export function SectionProjects({ direction, onNavigateTo }: SectionProps) {
                       </div>
 
                       {/* Description */}
-                      {p.description && (
-                        <p style={{
-                          fontFamily: 'var(--font-inter)', fontSize: 11,
-                          color: 'var(--text-secondary)', margin: 0, lineHeight: 1.55,
-                          display: '-webkit-box', WebkitLineClamp: 2,
-                          WebkitBoxOrient: 'vertical', overflow: 'hidden',
-                        }}>
-                          {p.description}
-                        </p>
-                      )}
+                      <p style={{
+                        fontFamily: 'var(--font-inter)', fontSize: 11,
+                        color: p.description ? 'var(--text-secondary)' : 'var(--text-muted)',
+                        margin: 0, lineHeight: 1.55,
+                        display: '-webkit-box', WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical', overflow: 'hidden',
+                        opacity: p.description ? 1 : 0.5,
+                        fontStyle: p.description ? 'normal' : 'italic',
+                      }}>
+                        {p.description ?? 'No description'}
+                      </p>
 
                       {/* Health stats row */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>

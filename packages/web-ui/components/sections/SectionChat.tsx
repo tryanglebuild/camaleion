@@ -3,7 +3,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { ArrowRight, ChevronDown, ChevronRight } from 'lucide-react'
+import { ArrowRight, ChevronDown, ChevronRight, X } from 'lucide-react'
 import { getClientConfig } from '@/lib/supabase'
 import { SectionWrapper, SectionHeader } from './SectionLayout'
 import type { SectionProps } from './types'
@@ -291,21 +291,20 @@ function UserMessage({ message }: { message: ChatMessage }) {
   return (
     <motion.div
       layout
-      initial={{ x: 16, opacity: 0 }}
+      initial={{ x: -8, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-      style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}
+      style={{ display: 'flex', flexDirection: 'column', marginLeft: 48 }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-        <span className="module-label" style={{ color: 'var(--text-muted)' }}>{formatTime(message.timestamp)}</span>
-        <span className="module-label" style={{ color: 'var(--text-muted)' }}>YOU</span>
+        <span className="module-label" style={{ color: 'var(--chat-amber)', fontFamily: 'var(--font-jetbrains-mono)', fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase' }}>YOU</span>
+        <span className="module-label" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-jetbrains-mono)', fontSize: 9 }}>{formatTime(message.timestamp)}</span>
       </div>
       <div style={{
-        maxWidth: 480,
-        background: 'var(--surface-3)',
-        border: '1px solid var(--border)',
-        borderRadius: 2,
+        marginLeft: 0,
+        borderLeft: '3px solid var(--chat-amber)',
+        background: 'var(--chat-amber-glow)',
         padding: '10px 14px',
         fontFamily: 'var(--font-jetbrains-mono)',
         fontSize: 13,
@@ -463,52 +462,58 @@ function BootSequence({ onCommand }: { onCommand: (cmd: string) => void }) {
 
 // ── ConversationItem ──────────────────────────────────────────────────────────
 
-function ConversationItem({ session, isActive, onClick }: { session: ChatSession; isActive: boolean; onClick: () => void }) {
-  const isRecent = session.last_message_at
-    ? (Date.now() - new Date(session.last_message_at).getTime()) < 24 * 60 * 60 * 1000
-    : false
-
-  const filled = Math.min(Math.round((session.message_count / 20) * 8), 8)
-  const densityBar = '▓'.repeat(filled) + '░'.repeat(8 - filled)
-
+function ConversationItem({ session, isActive, onClick, onDelete }: { session: ChatSession; isActive: boolean; onClick: () => void; onDelete: (id: string) => void }) {
   return (
-    <button
+    <div
+      className="group"
       onClick={onClick}
       style={{
         width: '100%',
-        height: isRecent ? 72 : 48,
-        padding: '0 16px',
-        background: isActive ? 'rgba(245,158,11,0.06)' : 'transparent',
-        borderLeft: isActive ? '2px solid var(--chat-amber)' : '2px solid transparent',
-        borderRadius: 0,
+        padding: '10px 14px',
+        background: isActive ? 'var(--surface-2)' : 'transparent',
+        borderRight: isActive ? '3px solid var(--chat-amber)' : '3px solid transparent',
+        borderLeft: 'none',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'center',
-        gap: isRecent ? 4 : 0,
+        gap: 3,
         textAlign: 'left',
         cursor: 'pointer',
         borderBottom: '1px solid var(--border)',
         borderTop: 'none',
-        borderRight: 'none',
         transition: 'background 0.15s',
+        position: 'relative',
       }}
-      onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.02)' }}
-      onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent' }}
+      onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLDivElement).style.background = 'var(--surface-1)' }}
+      onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}
     >
-      <span style={{ fontFamily: 'var(--font-space-grotesk)', fontSize: 12, fontWeight: 500, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-        {session.title}
-      </span>
-      {isRecent && (
-        <>
-          <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 9, color: 'var(--chat-amber)', opacity: 0.6, letterSpacing: '0.05em' }}>
-            {densityBar}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <span style={{ fontFamily: 'var(--font-inter)', fontSize: 12, fontWeight: 500, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+          {session.title}
+        </span>
+        <button
+          className="opacity-0 group-hover:opacity-100"
+          onClick={e => { e.stopPropagation(); onDelete(session.id) }}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 2, flexShrink: 0, transition: 'opacity 0.15s, color 0.15s', lineHeight: 1 }}
+          onMouseEnter={e => e.currentTarget.style.color = '#EF4444'}
+          onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
+        >
+          <X size={11} />
+        </button>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 10, color: 'var(--text-muted)' }}>
+          {session.last_message_at
+            ? new Date(session.last_message_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            : new Date(session.updated_at ?? session.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        </span>
+        {session.message_count > 0 && (
+          <span style={{ background: 'var(--surface-3)', border: '1px solid var(--border)', borderRadius: 10, padding: '1px 6px', fontSize: 10, fontFamily: 'var(--font-jetbrains-mono)', color: 'var(--text-muted)' }}>
+            {session.message_count}
           </span>
-          <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 9, color: 'var(--text-muted)' }}>
-            {session.message_count} msgs
-          </span>
-        </>
-      )}
-    </button>
+        )}
+      </div>
+    </div>
   )
 }
 
@@ -531,6 +536,7 @@ export function SectionChat({ direction }: SectionProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const finalContentRef = useRef('')
   const finalToolCallsRef = useRef<ToolCall[]>([])
+  const skipNextSessionLoad = useRef(false)
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -559,6 +565,10 @@ export function SectionChat({ direction }: SectionProps) {
   // Load messages when session changes
   useEffect(() => {
     if (!activeSessionId) return
+    if (skipNextSessionLoad.current) {
+      skipNextSessionLoad.current = false
+      return
+    }
     async function loadMessages() {
       const res = await fetch(`/api/chat-sessions/${activeSessionId}`)
       if (res.ok) {
@@ -590,6 +600,15 @@ export function SectionChat({ direction }: SectionProps) {
     setMessages([])
     return session.id
   }, [])
+
+  const handleDeleteSession = useCallback(async (id: string) => {
+    setSessions(prev => prev.filter(s => s.id !== id))
+    if (activeSessionId === id) {
+      setActiveSessionId(null)
+      setMessages([])
+    }
+    await fetch(`/api/chat-sessions/${id}`, { method: 'DELETE' })
+  }, [activeSessionId])
 
   const toggleToolCall = useCallback((_msgId: string, toolId: string) => {
     setCollapsedTools(prev => {
@@ -624,6 +643,7 @@ export function SectionChat({ direction }: SectionProps) {
           const session = await res.json()
           sessionId = session.id
           setSessions(prev => [session, ...prev])
+          skipNextSessionLoad.current = true
           setActiveSessionId(session.id)
         }
       } catch { /* continue without persistence */ }
@@ -847,264 +867,239 @@ export function SectionChat({ direction }: SectionProps) {
 
   const canSend = input.trim().length > 0 && !isLoading
 
-  const rightSlot = (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-      {tokenCount > 0 && (
-        <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 11, color: 'var(--text-muted)' }}>
-          {tokenCount} tokens
-        </span>
-      )}
-      {messages.length > 0 && (
-        <button
-          onClick={handleClear}
-          style={{
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-            fontFamily: 'var(--font-space-grotesk)',
-            fontSize: 11,
-            color: 'var(--text-muted)',
-            padding: 0,
-            transition: 'color 0.15s',
-          }}
-          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--status-blocked)' }}
-          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-muted)' }}
-        >
-          ✕ CLEAR
-        </button>
-      )}
-    </div>
-  )
-
   return (
-    <SectionWrapper direction={direction} style={{ flexDirection: 'row' }}>
-      {/* Sessions panel */}
-      <div style={{
-        width: 280,
-        borderRight: '1px solid var(--border)',
-        display: 'flex',
-        flexDirection: 'column',
-        background: 'var(--surface-1)',
-        flexShrink: 0,
-        overflow: 'hidden',
-      }}>
-        {/* Panel header */}
-        <div style={{
-          height: 48,
-          borderBottom: '1px solid var(--border)',
-          display: 'flex',
-          alignItems: 'center',
-          padding: '0 16px',
-          justifyContent: 'space-between',
-          flexShrink: 0,
-        }}>
-          <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.1em' }}>
-            CONVERSATIONS
-          </span>
-          <button
-            onClick={createSession}
-            title="New conversation"
-            style={{
-              width: 24, height: 24, borderRadius: 0,
-              border: '1px solid var(--border)',
-              background: 'transparent', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontFamily: 'var(--font-jetbrains-mono)', fontSize: 16,
-              color: 'var(--text-muted)',
-              transition: 'color 0.15s, border-color 0.15s',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.color = 'var(--chat-amber)'; e.currentTarget.style.borderColor = 'var(--chat-amber)' }}
-            onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border)' }}
-          >
-            +
-          </button>
-        </div>
+    <SectionWrapper direction={direction}>
+      {/* Inline CSS for streaming animations */}
+      <style>{`
+        @keyframes streaming-pulse {
+          0%, 100% { opacity: 0.2 }
+          50% { opacity: 1 }
+        }
+        @keyframes cursor-blink {
+          0%, 100% { opacity: 1 }
+          50% { opacity: 0 }
+        }
+        @keyframes prefix-blink {
+          0%, 100% { opacity: 1 }
+          50% { opacity: 0 }
+        }
+        .streaming-dot {
+          font-family: var(--font-jetbrains-mono);
+          font-size: 13px;
+          color: var(--chat-amber);
+          animation: streaming-pulse 600ms ease-in-out infinite;
+          display: inline-block;
+        }
+        .cursor-blink {
+          animation: cursor-blink 530ms step-end infinite;
+        }
+        .prefix-underscore {
+          animation: prefix-blink 530ms step-end infinite;
+        }
+      `}</style>
 
-        {/* Sessions list */}
-        <div style={{ flex: 1, overflowY: 'auto' }}>
-          {sessionsLoading ? (
-            <div style={{ padding: '16px', fontFamily: 'var(--font-jetbrains-mono)', fontSize: 10, color: 'var(--text-muted)' }}>
-              loading...
-            </div>
-          ) : sessions.length === 0 ? (
-            <div style={{ padding: '16px', fontFamily: 'var(--font-jetbrains-mono)', fontSize: 10, color: 'var(--text-muted)' }}>
-              no conversations yet
-            </div>
-          ) : (
-            sessions.map(session => (
-              <ConversationItem
-                key={session.id}
-                session={session}
-                isActive={session.id === activeSessionId}
-                onClick={() => setActiveSessionId(session.id)}
-              />
-            ))
-          )}
-        </div>
-      </div>
-
-      {/* Chat panel */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
-        {/* Inline CSS for streaming animations */}
-        <style>{`
-          @keyframes streaming-pulse {
-            0%, 100% { opacity: 0.2 }
-            50% { opacity: 1 }
-          }
-          @keyframes cursor-blink {
-            0%, 100% { opacity: 1 }
-            50% { opacity: 0 }
-          }
-          @keyframes prefix-blink {
-            0%, 100% { opacity: 1 }
-            50% { opacity: 0 }
-          }
-          .streaming-dot {
-            font-family: var(--font-jetbrains-mono);
-            font-size: 13px;
-            color: var(--chat-amber);
-            animation: streaming-pulse 600ms ease-in-out infinite;
-            display: inline-block;
-          }
-          .cursor-blink {
-            animation: cursor-blink 530ms step-end infinite;
-          }
-          .prefix-underscore {
-            animation: prefix-blink 530ms step-end infinite;
-          }
-        `}</style>
-
-        <SectionHeader
-          title="CE.CHAT"
-          accent="var(--chat-amber)"
-          rightSlot={rightSlot}
-        />
-
-        {/* ChatFeed */}
-        <div
-          ref={feedRef}
-          style={{
-            flex: 1,
-            overflowY: 'auto',
-            padding: '24px 32px',
-            minHeight: 0,
-          }}
-        >
-          <div style={{ maxWidth: 720, marginLeft: 'auto', marginRight: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {messages.length === 0 && !isLoading && (
-              <BootSequence onCommand={sendMessage} />
+      {/* Full-width header */}
+      <SectionHeader
+        title="CE.CHAT"
+        accent="var(--chat-amber)"
+        rightSlot={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            {tokenCount > 0 && (
+              <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: 11, color: 'var(--text-muted)' }}>
+                {tokenCount} tokens
+              </span>
             )}
+            {messages.length > 0 && (
+              <button
+                onClick={handleClear}
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  fontFamily: 'var(--font-space-grotesk)', fontSize: 11, color: 'var(--text-muted)',
+                  padding: 0, transition: 'color 0.15s',
+                }}
+                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--status-blocked)' }}
+                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-muted)' }}
+              >✕ CLEAR</button>
+            )}
+            <button
+              onClick={createSession}
+              title="New conversation"
+              style={{
+                width: 24, height: 24, borderRadius: 0,
+                border: '1px solid var(--border)',
+                background: 'transparent', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontFamily: 'var(--font-jetbrains-mono)', fontSize: 16,
+                color: 'var(--text-muted)',
+                transition: 'color 0.15s, border-color 0.15s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.color = 'var(--chat-amber)'; e.currentTarget.style.borderColor = 'var(--chat-amber)' }}
+              onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border)' }}
+            >+</button>
+          </div>
+        }
+      />
 
-            <AnimatePresence initial={false}>
-              {messages.map((msg) => {
-                if (msg.role === 'user') {
-                  return <UserMessage key={msg.id} message={msg} />
-                }
-                if (msg.isStreaming && msg.isInToolPhase && msg.toolCallPhase.length === 0) {
+      {/* Body: chat panel + sessions sidebar (right) */}
+      <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
+
+        {/* Chat panel */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+
+          {/* ChatFeed */}
+          <div
+            ref={feedRef}
+            style={{ flex: 1, overflowY: 'auto', padding: '24px 32px', minHeight: 0 }}
+          >
+            <div style={{ maxWidth: 720, marginLeft: 'auto', marginRight: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {messages.length === 0 && !isLoading && (
+                <BootSequence onCommand={sendMessage} />
+              )}
+
+              <AnimatePresence initial={false}>
+                {messages.map((msg) => {
+                  if (msg.role === 'user') {
+                    return <UserMessage key={msg.id} message={msg} />
+                  }
+                  if (msg.isStreaming && msg.isInToolPhase && msg.toolCallPhase.length === 0) {
+                    return (
+                      <motion.div key={msg.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                        <StreamingIndicator />
+                      </motion.div>
+                    )
+                  }
                   return (
-                    <motion.div key={msg.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                      <StreamingIndicator />
-                    </motion.div>
+                    <AiMessage key={msg.id} message={msg} collapsedTools={collapsedTools} onToggleTool={toggleToolCall} />
                   )
-                }
-                return (
-                  <AiMessage key={msg.id} message={msg} collapsedTools={collapsedTools} onToggleTool={toggleToolCall} />
-                )
-              })}
-            </AnimatePresence>
+                })}
+              </AnimatePresence>
+            </div>
+          </div>
+
+          {/* InputBar */}
+          <div style={{
+            flexShrink: 0,
+            height: 56,
+            background: 'var(--surface-1)',
+            borderTop: '1px solid var(--border)',
+            display: 'flex',
+            alignItems: 'center',
+            padding: '0 16px',
+          }}>
+            <div style={{
+              width: '100%',
+              maxWidth: 720,
+              marginLeft: 'auto',
+              marginRight: 'auto',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+            }}>
+              {/* Prefix "> CE" */}
+              <div style={{
+                fontFamily: 'var(--font-jetbrains-mono)',
+                fontSize: 13,
+                fontWeight: 500,
+                color: 'var(--chat-amber)',
+                width: 52,
+                flexShrink: 0,
+                userSelect: 'none',
+              }}>
+                {'> CE'}
+                {!prefixFocused && (
+                  <span className="prefix-underscore" style={{ color: 'var(--chat-amber)' }}>_</span>
+                )}
+              </div>
+
+              {/* Input */}
+              <input
+                ref={inputRef}
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                onFocus={() => setPrefixFocused(true)}
+                onBlur={() => setPrefixFocused(false)}
+                placeholder="Ask anything…"
+                disabled={isLoading}
+                style={{
+                  flex: 1,
+                  height: 36,
+                  background: 'var(--surface-2)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 2,
+                  padding: '0 12px',
+                  fontFamily: 'var(--font-jetbrains-mono)',
+                  fontSize: 13,
+                  color: 'var(--text-primary)',
+                  outline: 'none',
+                  transition: 'border-color 0.15s, box-shadow 0.15s',
+                }}
+                onFocusCapture={e => {
+                  const el = e.currentTarget
+                  el.style.borderColor = 'var(--chat-amber)'
+                  el.style.boxShadow = '0 0 0 2px var(--chat-amber-glow)'
+                }}
+                onBlurCapture={e => {
+                  const el = e.currentTarget
+                  el.style.borderColor = 'var(--border)'
+                  el.style.boxShadow = 'none'
+                }}
+              />
+
+              {/* Send button */}
+              <button
+                onClick={() => sendMessage(input)}
+                disabled={!canSend}
+                style={{
+                  width: 36,
+                  height: 36,
+                  flexShrink: 0,
+                  borderRadius: 2,
+                  border: 'none',
+                  background: canSend ? 'var(--chat-amber)' : 'var(--surface-3)',
+                  cursor: canSend ? 'pointer' : 'not-allowed',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'background 0.15s',
+                }}
+              >
+                <ArrowRight size={14} style={{ color: canSend ? '#fff' : 'var(--text-muted)' }} />
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* InputBar */}
+        {/* Sessions sidebar (right) */}
         <div style={{
-          flexShrink: 0,
-          height: 72,
-          background: 'var(--surface-1)',
-          borderTop: '1px solid var(--border)',
+          width: 240,
+          borderLeft: '1px solid var(--border)',
           display: 'flex',
-          alignItems: 'center',
-          padding: '0 16px',
+          flexDirection: 'column',
+          flexShrink: 0,
+          overflow: 'hidden',
         }}>
-          <div style={{
-            width: '100%',
-            maxWidth: 720,
-            marginLeft: 'auto',
-            marginRight: 'auto',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-          }}>
-            {/* Prefix "> CE" */}
-            <div style={{
-              fontFamily: 'var(--font-jetbrains-mono)',
-              fontSize: 13,
-              fontWeight: 500,
-              color: 'var(--chat-amber)',
-              width: 52,
-              flexShrink: 0,
-              userSelect: 'none',
-            }}>
-              {'> CE'}
-              {!prefixFocused && (
-                <span className="prefix-underscore" style={{ color: 'var(--chat-amber)' }}>_</span>
-              )}
-            </div>
-
-            {/* Input */}
-            <input
-              ref={inputRef}
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              onFocus={() => setPrefixFocused(true)}
-              onBlur={() => setPrefixFocused(false)}
-              placeholder="Ask anything…"
-              disabled={isLoading}
-              style={{
-                flex: 1,
-                height: 40,
-                background: 'var(--surface-2)',
-                border: '1px solid var(--border)',
-                borderRadius: 2,
-                padding: '0 12px',
-                fontFamily: 'var(--font-jetbrains-mono)',
-                fontSize: 13,
-                color: 'var(--text-primary)',
-                outline: 'none',
-                transition: 'border-color 0.15s, box-shadow 0.15s',
-              }}
-              onFocusCapture={e => {
-                const el = e.currentTarget
-                el.style.borderColor = 'var(--chat-amber)'
-                el.style.boxShadow = '0 0 0 2px var(--chat-amber-glow)'
-              }}
-              onBlurCapture={e => {
-                const el = e.currentTarget
-                el.style.borderColor = 'var(--border)'
-                el.style.boxShadow = 'none'
-              }}
-            />
-
-            {/* Send button */}
-            <button
-              onClick={() => sendMessage(input)}
-              disabled={!canSend}
-              style={{
-                width: 40,
-                height: 40,
-                flexShrink: 0,
-                borderRadius: 2,
-                border: 'none',
-                background: canSend ? 'var(--chat-amber)' : 'var(--surface-3)',
-                cursor: canSend ? 'pointer' : 'not-allowed',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'background 0.15s',
-              }}
-            >
-              <ArrowRight size={14} style={{ color: canSend ? '#fff' : 'var(--text-muted)' }} />
-            </button>
+          {/* Scrollable session list */}
+          <div style={{ flex: 1, overflowY: 'auto' }}>
+            {sessionsLoading ? (
+              <div style={{ padding: '16px', fontFamily: 'var(--font-jetbrains-mono)', fontSize: 10, color: 'var(--text-muted)' }}>
+                loading...
+              </div>
+            ) : sessions.length === 0 ? (
+              <div style={{ padding: '16px', fontFamily: 'var(--font-jetbrains-mono)', fontSize: 10, color: 'var(--text-muted)' }}>
+                no conversations yet
+              </div>
+            ) : (
+              sessions.map(session => (
+                <ConversationItem
+                  key={session.id}
+                  session={session}
+                  isActive={session.id === activeSessionId}
+                  onClick={() => setActiveSessionId(session.id)}
+                  onDelete={handleDeleteSession}
+                />
+              ))
+            )}
           </div>
         </div>
       </div>

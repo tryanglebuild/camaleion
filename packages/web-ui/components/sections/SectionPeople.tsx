@@ -1,7 +1,7 @@
 'use client'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Plus, X, ChevronLeft, ChevronRight, Mail, Building2, Briefcase, Pencil } from 'lucide-react'
+import { Plus, X, ChevronLeft, ChevronRight, Mail, Building2, Briefcase, Pencil, Trash2 } from 'lucide-react'
 import { sectionVariants } from './sectionVariants'
 import type { SectionProps } from './types'
 import { SECTION_INDEX } from './types'
@@ -291,6 +291,13 @@ export function SectionPeople({ direction, onNavigateTo }: SectionProps) {
     load(page)
   }
 
+  const handleDelete = async (id: string) => {
+    setPeople(prev => prev.filter(p => p.id !== id))
+    if (selected?.id === id) setSelected(null)
+    await supabase.from('people').delete().eq('id', id)
+    setTotal(t => t - 1)
+  }
+
   const totalPages = Math.ceil(total / PAGE_SIZE)
 
   return (
@@ -365,6 +372,7 @@ export function SectionPeople({ direction, onNavigateTo }: SectionProps) {
                       key={p.id}
                       variants={rowVariants}
                       onClick={() => setSelected(p)}
+                      className="group"
                       style={{
                         display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px 9px 11px',
                         cursor: 'pointer', transition: 'all 0.12s',
@@ -401,6 +409,19 @@ export function SectionPeople({ direction, onNavigateTo }: SectionProps) {
                       }}>
                         {p.entryCount}
                       </span>
+                      <button
+                        onClick={e => { e.stopPropagation(); handleDelete(p.id) }}
+                        className="group-hover:opacity-100"
+                        style={{
+                          opacity: 0, transition: 'opacity 0.15s, color 0.15s',
+                          flexShrink: 0, color: 'var(--text-muted)',
+                          background: 'none', border: 'none', cursor: 'pointer', padding: 2, borderRadius: 3,
+                        }}
+                        onMouseEnter={e => (e.currentTarget.style.color = '#EF4444')}
+                        onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
+                      >
+                        <Trash2 size={11} />
+                      </button>
                     </motion.div>
                   )
                 })}
