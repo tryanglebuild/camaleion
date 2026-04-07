@@ -1,175 +1,128 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-
-const WORDS = ["It's", "open", "source."];
-const LINE2_WORDS = ["Take", "it.", "Make", "it", "yours."];
+import { motion } from "framer-motion";
 
 export default function CtaSection() {
-  const sectionRef = useRef<HTMLDivElement>(null);
-  const wordRefs = useRef<(HTMLSpanElement | null)[]>([]);
-  const line2Refs = useRef<(HTMLSpanElement | null)[]>([]);
-  const ctaRef = useRef<HTMLAnchorElement>(null);
-  const footerRef = useRef<HTMLParagraphElement>(null);
-  const shown = useRef(false);
-
-  useEffect(() => {
-    const section = sectionRef.current;
-    if (!section) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting && !shown.current) {
-          shown.current = true;
-
-          WORDS.forEach((_, i) => {
-            const el = wordRefs.current[i];
-            if (!el) return;
-            setTimeout(() => {
-              el.style.opacity = "1";
-              el.style.transform = "translateY(0)";
-            }, i * 120);
-          });
-
-          LINE2_WORDS.forEach((_, i) => {
-            const el = line2Refs.current[i];
-            if (!el) return;
-            setTimeout(() => {
-              el.style.opacity = "1";
-              el.style.transform = "translateY(0)";
-            }, WORDS.length * 120 + i * 80);
-          });
-
-          const totalDelay = (WORDS.length + LINE2_WORDS.length) * 120;
-
-          if (ctaRef.current) {
-            setTimeout(() => {
-              ctaRef.current!.style.opacity = "1";
-              ctaRef.current!.style.transform = "translateY(0)";
-            }, totalDelay + 100);
-          }
-
-          if (footerRef.current) {
-            setTimeout(() => {
-              footerRef.current!.style.opacity = "1";
-            }, totalDelay + 400);
-          }
-
-          observer.disconnect();
-        }
-      },
-      { threshold: 0.2 }
-    );
-    observer.observe(section);
-    return () => observer.disconnect();
-  }, []);
-
   return (
     <section
-      ref={sectionRef}
       style={{
-        background: "var(--bg-base)",
-        padding: "20vh 40px",
+        background: "var(--surface-1)",
         borderTop: "1px solid var(--border-subtle)",
-        textAlign: "center",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: "48px",
+        padding: "120px 80px 80px",
       }}
     >
-      <div>
-        {/* Line 1 */}
-        <h2
-          style={{
+      <div style={{ maxWidth: "700px", margin: "0 auto", textAlign: "center" }}>
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.3 }}
+          transition={{ duration: 0.5 }}
+        >
+          <p style={{
+            fontFamily: "var(--font-jetbrains-mono), monospace",
+            fontSize: "10px",
+            color: "var(--accent)",
+            letterSpacing: "0.12em",
+            textTransform: "uppercase",
+            marginBottom: "24px",
+          }}>
+            Open source · Free
+          </p>
+          <h2 style={{
             fontFamily: "var(--font-space-grotesk), sans-serif",
-            fontSize: "var(--text-display)",
+            fontSize: "clamp(36px, 5vw, 64px)",
             fontWeight: 700,
-            letterSpacing: "-0.03em",
-            lineHeight: 1.1,
             color: "var(--text-primary)",
-            marginBottom: "8px",
-            display: "flex",
-            flexWrap: "wrap",
-            justifyContent: "center",
-            gap: "0.25em",
-          }}
-        >
-          {WORDS.map((word, i) => (
-            <span
-              key={i}
-              ref={(el) => { wordRefs.current[i] = el; }}
-              style={{
-                display: "inline-block",
-                opacity: 0,
-                transform: "translateY(12px)",
-                transition: "opacity 400ms ease, transform 400ms ease",
-              }}
-            >
-              {word}
-            </span>
-          ))}
-        </h2>
-
-        {/* Line 2 */}
-        <h2
-          style={{
-            fontFamily: "var(--font-space-grotesk), sans-serif",
-            fontSize: "var(--text-display)",
-            fontWeight: 400,
-            letterSpacing: "-0.03em",
-            lineHeight: 1.1,
+            letterSpacing: "-0.04em",
+            lineHeight: 0.95,
+            marginBottom: "28px",
+          }}>
+            Give your AI<br />
+            <span style={{ color: "var(--accent)" }}>a memory.</span>
+          </h2>
+          <p style={{
+            fontSize: "16px",
             color: "var(--text-secondary)",
-            display: "flex",
-            flexWrap: "wrap",
-            justifyContent: "center",
-            gap: "0.25em",
-          }}
-        >
-          {LINE2_WORDS.map((word, i) => (
-            <span
-              key={i}
-              ref={(el) => { line2Refs.current[i] = el; }}
-              style={{
-                display: "inline-block",
-                opacity: 0,
-                transform: "translateY(12px)",
-                transition: "opacity 400ms ease, transform 400ms ease",
-              }}
+            lineHeight: 1.7,
+            marginBottom: "48px",
+          }}>
+            12 MCP tools. pgvector semantic search. Multi-agent sessions.
+            <br />
+            Works with Claude Code and GitHub Copilot CLI. Open source.
+          </p>
+          <div style={{ display: "flex", gap: "16px", justifyContent: "center", flexWrap: "wrap" }}>
+            <a
+              href="https://github.com/tryangle/project-ai-system"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="cta-primary"
             >
-              {word}
-            </span>
-          ))}
-        </h2>
+              ★ Star on GitHub
+            </a>
+            <a
+              href="https://github.com/tryangle/project-ai-system#readme"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="cta-secondary"
+            >
+              Read the docs →
+            </a>
+          </div>
+        </motion.div>
       </div>
 
-      <a
-        ref={ctaRef}
-        href="https://github.com/tryangle/project-ai-system"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="cta-github"
-        style={{
-          opacity: 0,
-          transform: "translateY(8px)",
-          transition: "opacity 600ms ease, transform 600ms ease, background 120ms ease, color 120ms ease, transform 120ms ease",
-        }}
-      >
-        ★ github.com/tryangle/project-ai-system
-      </a>
-
-      <p
-        ref={footerRef}
-        style={{
-          fontFamily: "var(--font-jetbrains-mono), monospace",
-          fontSize: "var(--text-micro)",
+      {/* Footer */}
+      <div style={{
+        borderTop: "1px solid var(--border-subtle)",
+        marginTop: "80px",
+        paddingTop: "32px",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        flexWrap: "wrap",
+        gap: "16px",
+      }}>
+        <span style={{
+          fontFamily: "var(--font-space-grotesk), sans-serif",
+          fontSize: "14px",
+          fontWeight: 600,
           color: "var(--text-muted)",
-          letterSpacing: "0.06em",
-          opacity: 0,
-          transition: "opacity 600ms ease",
-        }}
-      >
-        ◈ camaleon&nbsp;&nbsp;·&nbsp;&nbsp;context engine&nbsp;&nbsp;·&nbsp;&nbsp;MIT License
-      </p>
+          letterSpacing: "-0.01em",
+        }}>
+          ◈ camaleon
+        </span>
+        <div style={{ display: "flex", gap: "24px" }}>
+          {[
+            { label: "GitHub",  href: "https://github.com/tryangle/project-ai-system" },
+            { label: "Docs",    href: "#how-it-works" },
+          ].map((l) => (
+            <a
+              key={l.label}
+              href={l.href}
+              target={l.href.startsWith("http") ? "_blank" : undefined}
+              rel={l.href.startsWith("http") ? "noopener noreferrer" : undefined}
+              style={{
+                fontFamily: "var(--font-jetbrains-mono), monospace",
+                fontSize: "11px",
+                color: "var(--text-muted)",
+                textDecoration: "none",
+                transition: "color 120ms ease",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text-primary)")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
+            >
+              {l.label}
+            </a>
+          ))}
+        </div>
+        <span style={{
+          fontFamily: "var(--font-jetbrains-mono), monospace",
+          fontSize: "10px",
+          color: "var(--text-muted)",
+        }}>
+          MIT License
+        </span>
+      </div>
     </section>
   );
 }

@@ -1,272 +1,143 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { motion } from "framer-motion";
 
-const PILLARS = [
+const STEPS = [
   {
-    num: "01",
-    title: "MCP Server",
-    body: "12 tools. Native Claude Code + Copilot CLI integration. Runs in your environment.",
-    bg: "var(--surface-1)",
+    n: "01",
+    title: "Install the MCP server",
+    body: "Add camaleon to your Claude Code or Copilot CLI config. One command. Works immediately.",
+    code: "npx @context-engine/cli install",
   },
   {
-    num: "02",
-    title: "Supabase + pgvector",
-    body: "Persistent storage. Vector embeddings. Semantic similarity search at query time.",
-    bg: "var(--bg-base)",
+    n: "02",
+    title: "Use 12 MCP tools",
+    body: "add_entry, query_context, search_memory, save_analysis, start_session — and 7 more. All available inside Claude Code and Copilot CLI.",
+    code: "add_entry({ type: 'decision', title: '...' })",
   },
   {
-    num: "03",
-    title: "Web UI",
-    body: "Real-time dashboard. Every MCP call reflected instantly. Built with Next.js 15.",
-    bg: "var(--surface-1)",
+    n: "03",
+    title: "Your AI finally knows",
+    body: "Every session is context-aware. No more \"I don't have information about previous sessions\". Your AI has memory — permanently.",
+    code: "query_context({ question: 'what did we decide?' })",
   },
 ];
-
-const CODE_TRACE = [
-  'query_context("what stack for auth?")',
-  "→  embed query",
-  "→  cosine similarity",
-  "→  3 matches",
-  "→  Claude uses",
-];
-
-function useInView(
-  ref: React.RefObject<Element | null>,
-  onEnter: () => void,
-  threshold = 0.15
-) {
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          onEnter();
-          observer.disconnect();
-        }
-      },
-      { threshold }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [ref, onEnter, threshold]);
-}
 
 export default function HowItWorksSection() {
-  const sectionRef = useRef<HTMLDivElement>(null);
-  const traceRef = useRef<HTMLDivElement>(null);
-  const traceSpans = useRef<(HTMLSpanElement | null)[]>([]);
-  const pillarsShown = useRef(false);
-  const traceShown = useRef(false);
-
-  useInView(sectionRef, () => {
-    if (pillarsShown.current) return;
-    pillarsShown.current = true;
-    document.querySelectorAll(".pillar-anim").forEach((el, i) => {
-      setTimeout(() => {
-        (el as HTMLElement).setAttribute("data-inview", "true");
-      }, i * 100);
-    });
-  });
-
-  useInView(traceRef, () => {
-    if (traceShown.current) return;
-    traceShown.current = true;
-    traceSpans.current.forEach((span, i) => {
-      if (!span) return;
-      setTimeout(() => {
-        span.style.opacity = "1";
-        span.style.transform = "translateY(0)";
-      }, i * 200);
-    });
-  });
-
   return (
     <section
       id="how-it-works"
-      ref={sectionRef}
       style={{
         background: "var(--bg-base)",
-        padding: "120px 40px",
-        borderTop: "1px solid var(--border-subtle)",
+        padding: "120px 80px",
+        position: "relative",
       }}
     >
-      <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
-        <p
-          style={{
-            fontFamily: "var(--font-jetbrains-mono), monospace",
-            fontSize: "var(--text-micro)",
-            color: "var(--text-muted)",
-            letterSpacing: "0.1em",
-            marginBottom: "16px",
-          }}
+      <div style={{ maxWidth: "900px", margin: "0 auto" }}>
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.3 }}
+          transition={{ duration: 0.5 }}
+          style={{ marginBottom: "72px" }}
         >
-          ── How it works ──────────────────────────────
-        </p>
-        <h2
-          style={{
+          <p style={{
+            fontFamily: "var(--font-jetbrains-mono), monospace",
+            fontSize: "10px",
+            color: "var(--accent)",
+            letterSpacing: "0.12em",
+            textTransform: "uppercase",
+            marginBottom: "16px",
+          }}>
+            How it works
+          </p>
+          <h2 style={{
             fontFamily: "var(--font-space-grotesk), sans-serif",
-            fontSize: "var(--text-display)",
+            fontSize: "clamp(32px, 4vw, 52px)",
             fontWeight: 700,
             color: "var(--text-primary)",
             letterSpacing: "-0.03em",
-            marginBottom: "8px",
-          }}
-        >
-          Three components.
-        </h2>
-        <h2
-          style={{
-            fontFamily: "var(--font-space-grotesk), sans-serif",
-            fontSize: "var(--text-display)",
-            fontWeight: 400,
-            color: "var(--text-secondary)",
-            letterSpacing: "-0.03em",
-            marginBottom: "64px",
-          }}
-        >
-          One pipeline.
-        </h2>
+            lineHeight: 1.1,
+          }}>
+            Up in three steps.
+          </h2>
+        </motion.div>
 
-        {/* Pillars */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(3, 1fr)",
-            gap: "1px",
-            background: "var(--border-subtle)",
-            marginBottom: "48px",
-          }}
-        >
-          {PILLARS.map((pillar, i) => (
-            <div
-              key={pillar.num}
-              className="pillar-anim pillar"
-              data-inview
+        {/* Steps */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "0" }}>
+          {STEPS.map((step, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, x: -20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true, amount: 0.3 }}
+              transition={{ duration: 0.5, delay: i * 0.1 }}
               style={{
-                background: pillar.bg,
-                border: "1px solid var(--border-subtle)",
-                padding: "40px",
-                position: "relative",
-                transitionDelay: `${i * 100}ms`,
+                display: "grid",
+                gridTemplateColumns: "80px 1fr",
+                gap: "32px",
+                paddingBottom: "56px",
+                borderBottom: i < STEPS.length - 1 ? "1px solid var(--border-subtle)" : "none",
+                marginBottom: i < STEPS.length - 1 ? "56px" : "0",
               }}
             >
-              {/* Decorative number */}
-              <div
-                style={{
+              {/* Step number */}
+              <div>
+                <span style={{
                   fontFamily: "var(--font-jetbrains-mono), monospace",
-                  fontSize: "48px",
-                  fontWeight: 600,
-                  color: "var(--surface-2)",
+                  fontSize: "clamp(28px, 4vw, 48px)",
+                  fontWeight: 700,
+                  color: "var(--border-strong)",
                   lineHeight: 1,
-                  marginBottom: "24px",
-                  userSelect: "none",
-                }}
-              >
-                {pillar.num}
+                  display: "block",
+                }}>
+                  {step.n}
+                </span>
               </div>
 
-              <h3
-                style={{
+              {/* Content */}
+              <div>
+                <h3 style={{
                   fontFamily: "var(--font-space-grotesk), sans-serif",
                   fontSize: "20px",
-                  fontWeight: 700,
+                  fontWeight: 600,
                   color: "var(--text-primary)",
-                  marginBottom: "12px",
-                }}
-              >
-                {pillar.title}
-              </h3>
-              <p
-                style={{
-                  fontSize: "var(--text-body)",
+                  marginBottom: "10px",
+                  letterSpacing: "-0.01em",
+                }}>
+                  {step.title}
+                </h3>
+                <p style={{
+                  fontSize: "15px",
                   color: "var(--text-secondary)",
                   lineHeight: 1.7,
-                }}
-              >
-                {pillar.body}
-              </p>
-
-              {/* Dashed connector */}
-              {i < 2 && (
-                <svg
-                  style={{
-                    position: "absolute",
-                    right: "-20px",
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                    zIndex: 1,
-                    overflow: "visible",
-                  }}
-                  width="40"
-                  height="2"
-                  aria-hidden="true"
-                >
-                  <line
-                    x1="0"
-                    y1="1"
-                    x2="40"
-                    y2="1"
-                    stroke="var(--accent)"
-                    strokeWidth="1"
-                    strokeDasharray="4 4"
-                    style={{
-                      animation: "march 600ms linear infinite",
-                    }}
-                  />
-                </svg>
-              )}
-            </div>
+                  marginBottom: "16px",
+                  maxWidth: "500px",
+                }}>
+                  {step.body}
+                </p>
+                <div style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  background: "var(--surface-1)",
+                  border: "1px solid var(--border-subtle)",
+                  borderRadius: "6px",
+                  padding: "8px 14px",
+                }}>
+                  <span style={{
+                    fontFamily: "var(--font-jetbrains-mono), monospace",
+                    fontSize: "12px",
+                    color: "var(--code-green)",
+                  }}>
+                    {step.code}
+                  </span>
+                </div>
+              </div>
+            </motion.div>
           ))}
         </div>
-
-        {/* Code trace */}
-        <div
-          ref={traceRef}
-          style={{
-            padding: "32px 40px",
-            background: "var(--accent-dim)",
-            borderLeft: "2px solid var(--accent)",
-            overflow: "auto",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              gap: "12px",
-              flexWrap: "wrap",
-              alignItems: "center",
-            }}
-          >
-            {CODE_TRACE.map((segment, i) => (
-              <span
-                key={i}
-                ref={(el) => { traceSpans.current[i] = el; }}
-                style={{
-                  fontFamily: "var(--font-jetbrains-mono), monospace",
-                  fontSize: "13px",
-                  color: "var(--accent)",
-                  opacity: 0,
-                  transform: "translateY(8px)",
-                  transition: "opacity 300ms ease, transform 300ms ease",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {segment}
-              </span>
-            ))}
-          </div>
-        </div>
       </div>
-
-      <style>{`
-        @media (max-width: 768px) {
-          #how-it-works [style*="grid-template-columns: repeat(3"] {
-            grid-template-columns: 1fr !important;
-          }
-        }
-      `}</style>
     </section>
   );
 }

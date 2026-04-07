@@ -1,12 +1,7 @@
 import Nav from "@/components/Nav";
 import HeroSection from "@/components/HeroSection";
-import ProblemSection from "@/components/ProblemSection";
-import FeaturesSection from "@/components/FeaturesSection";
-import PreviewSection from "@/components/PreviewSection";
+import DrawCanvas from "@/components/DrawCanvas";
 import HowItWorksSection from "@/components/HowItWorksSection";
-import InstallSection from "@/components/InstallSection";
-import DemoSection from "@/components/DemoSection";
-import LightModeSection from "@/components/LightModeSection";
 import CtaSection from "@/components/CtaSection";
 
 export default function HomePage() {
@@ -15,13 +10,8 @@ export default function HomePage() {
       <Nav />
       <main>
         <HeroSection />
-        <ProblemSection />
-        <FeaturesSection />
-        <PreviewSection />
+        <DrawCanvas />
         <HowItWorksSection />
-        <InstallSection />
-        <DemoSection />
-        <LightModeSection />
         <CtaSection />
       </main>
     </>
