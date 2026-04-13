@@ -23,27 +23,20 @@ export function saveClientConfig(cfg: ClientConfig) {
  */
 export async function syncConfigFromServer(): Promise<void> {
   try {
+    // Only seed localStorage when it's empty — never overwrite what the user set via Settings.
+    // Settings.saveCredentials() already updates both config.json AND localStorage together.
+    const existing = getClientConfig()
+    if (existing.supabaseUrl && isValidHttpUrl(existing.supabaseUrl)) return
+
     const res = await fetch('/api/config')
     if (!res.ok) return
     const data = await res.json() as { supabaseUrl?: string; supabaseAnonKey?: string }
     const url = data.supabaseUrl ?? ''
-    // The API masks the anon key — only update if we got a real (unmasked) value
-    const key = data.supabaseAnonKey?.endsWith('…') ? '' : (data.supabaseAnonKey ?? '')
-    if (!url) return
-    const existing = getClientConfig()
-    // Preserve the full key from localStorage if server returned a masked one
-    const anonKey = key || existing.supabaseAnonKey
-    if (url !== existing.supabaseUrl || (anonKey && anonKey !== existing.supabaseAnonKey)) {
-      saveClientConfig({ supabaseUrl: url, supabaseAnonKey: anonKey })
-      // URL changed — old realtime subscriptions are dead, must hard-reload
-      window.location.reload()
-      return
-    } else if (!existing.supabaseUrl && url) {
-      // localStorage was empty — seed it with the URL at least so client can init
-      saveClientConfig({ supabaseUrl: url, supabaseAnonKey: anonKey })
-      window.location.reload()
-      return
-    }
+    // API masks the anon key — skip masked values
+    const anonKey = data.supabaseAnonKey?.endsWith('…') ? '' : (data.supabaseAnonKey ?? '')
+    if (!url || !isValidHttpUrl(url)) return
+    saveClientConfig({ supabaseUrl: url, supabaseAnonKey: anonKey })
+    window.location.reload()
   } catch { /* ignore network errors */ }
 }
 
