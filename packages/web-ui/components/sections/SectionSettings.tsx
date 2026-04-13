@@ -151,41 +151,14 @@ export function SectionSettings({ direction }: SectionProps) {
     try {
       const text = await file.text()
       const data = JSON.parse(text)
-
-      // Support both legacy array format and multi-entity format
-      const isMulti = !Array.isArray(data) && (data.people || data.projects || data.entries)
-
-      const rawEntries: Record<string, unknown>[]  = isMulti ? (data.entries  ?? []) : (Array.isArray(data) ? data : data.entries ?? [])
-      const rawPeople: Record<string, unknown>[]   = isMulti ? (data.people   ?? []) : []
-      const rawProjects: Record<string, unknown>[] = isMulti ? (data.projects ?? []) : []
-
-      if (rawPeople.length === 0 && rawProjects.length === 0 && rawEntries.length === 0) {
-        toast('No data found in file', 'warning'); return
-      }
-
-      let totals: string[] = []
-
-      if (rawPeople.length > 0) {
-        const { error } = await supabase.from('people').upsert(rawPeople, { onConflict: 'id' })
-        if (error) throw new Error(`people: ${error.message}`)
-        totals.push(`${rawPeople.length} people`)
-      }
-
-      if (rawProjects.length > 0) {
-        const { error } = await supabase.from('projects').upsert(rawProjects, { onConflict: 'id' })
-        if (error) throw new Error(`projects: ${error.message}`)
-        totals.push(`${rawProjects.length} projects`)
-      }
-
-      if (rawEntries.length > 0) {
-        // Strip joined relation fields from export format
-        const entries = rawEntries.map(({ project: _p, person: _pe, ...rest }) => rest)
-        const { error } = await supabase.from('entries').upsert(entries, { onConflict: 'id' })
-        if (error) throw new Error(`entries: ${error.message}`)
-        totals.push(`${entries.length} entries`)
-      }
-
-      toast(`Imported ${totals.join(', ')}`)
+      const res = await fetch('/api/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      const result = await res.json() as { ok?: boolean; imported?: string; error?: string }
+      if (!res.ok || result.error) throw new Error(result.error ?? 'Import failed')
+      toast(`Imported ${result.imported}`)
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Import failed', 'error')
     }
