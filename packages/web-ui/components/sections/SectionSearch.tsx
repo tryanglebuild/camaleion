@@ -68,7 +68,9 @@ function relativeDate(iso: string): string {
   return d.toLocaleDateString('en', { month: 'short', day: 'numeric' })
 }
 
-const RAG_URL = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/rag-answer`
+const RAG_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
+  ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/rag-answer`
+  : ''
 
 interface TerminalInputProps {
   compact: boolean

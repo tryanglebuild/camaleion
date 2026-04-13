@@ -44,9 +44,16 @@ export async function syncConfigFromServer(): Promise<void> {
   } catch { /* ignore network errors */ }
 }
 
+function isValidHttpUrl(s: string): boolean {
+  try {
+    const u = new URL(s)
+    return u.protocol === 'http:' || u.protocol === 'https:'
+  } catch { return false }
+}
+
 function makeClient(): SupabaseClient {
   const { supabaseUrl, supabaseAnonKey } = getClientConfig()
-  if (!supabaseUrl || !supabaseAnonKey) {
+  if (!supabaseUrl || !supabaseAnonKey || !isValidHttpUrl(supabaseUrl)) {
     // Return a no-op client so the app doesn't crash before configuration
     return createClient('https://placeholder.supabase.co', 'placeholder')
   }
