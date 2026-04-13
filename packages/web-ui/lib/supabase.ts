@@ -35,11 +35,14 @@ export async function syncConfigFromServer(): Promise<void> {
     const anonKey = key || existing.supabaseAnonKey
     if (url !== existing.supabaseUrl || (anonKey && anonKey !== existing.supabaseAnonKey)) {
       saveClientConfig({ supabaseUrl: url, supabaseAnonKey: anonKey })
-      reloadSupabase()
+      // URL changed — old realtime subscriptions are dead, must hard-reload
+      window.location.reload()
+      return
     } else if (!existing.supabaseUrl && url) {
       // localStorage was empty — seed it with the URL at least so client can init
       saveClientConfig({ supabaseUrl: url, supabaseAnonKey: anonKey })
-      reloadSupabase()
+      window.location.reload()
+      return
     }
   } catch { /* ignore network errors */ }
 }
