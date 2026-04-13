@@ -8,6 +8,7 @@ import type { SectionProps } from './types'
 import type { Entry, EntryType, EntryStatus } from '@context-engine/shared'
 import { SectionWrapper, SectionHeader } from './SectionLayout'
 import { SECTION_INDEX } from './types'
+import { getClientConfig } from '@/lib/supabase'
 
 interface SearchEntry extends Entry { similarity?: number }
 
@@ -305,11 +306,17 @@ export function SectionSearch({ direction, onNavigateTo }: SectionProps) {
     const ctrl = new AbortController()
     abortRef.current = ctrl
     try {
-      const res = await fetch(RAG_URL, {
+      // Use dynamic config so credentials changed in Settings are respected
+      const { supabaseUrl, supabaseAnonKey } = getClientConfig()
+      const ragUrl = supabaseUrl
+        ? `${supabaseUrl}/functions/v1/rag-answer`
+        : RAG_URL
+      const authKey = supabaseAnonKey || (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '')
+      const res = await fetch(ragUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ''}`,
+          'Authorization': `Bearer ${authKey}`,
         },
         body: JSON.stringify({ query: q, results: data.slice(0, 8) }),
         signal: ctrl.signal,
