@@ -1,0 +1,255 @@
+{
+  "people": [
+    {
+      "id": "22222222-0000-0000-0000-000000000001",
+      "name": "MC",
+      "role": "Founder & Lead Engineer",
+      "company": "Tryangle",
+      "email": "mc@tryangle.io",
+      "notes": "Arquitecto do sistema Context Engine. Responsável por todas as decisões de produto e stack. Prefere soluções minimalistas e explícitas.",
+      "created_at": "2025-10-01T09:00:00Z"
+    },
+    {
+      "id": "22222222-0000-0000-0000-000000000002",
+      "name": "Bruno Lançoni",
+      "role": "Design Director",
+      "company": "Tryangle",
+      "email": "bruno@tryangle.io",
+      "notes": "Design critic interno. Exigente com consistência visual. Defende sempre a solução correcta sobre gambiarras. Reviu o pipeline multi-agent e aprovou a fase de design.",
+      "created_at": "2025-10-15T10:00:00Z"
+    },
+    {
+      "id": "22222222-0000-0000-0000-000000000003",
+      "name": "Sofia Ramos",
+      "role": "Frontend Engineer",
+      "company": "Tryangle",
+      "email": "sofia@tryangle.io",
+      "notes": "Responsável pela implementação do web-ui. Especialista em Next.js e Supabase. Participou no review Q1 do sistema de agentes.",
+      "created_at": "2025-11-01T09:00:00Z"
+    },
+    {
+      "id": "22222222-0000-0000-0000-000000000004",
+      "name": "André Figueiredo",
+      "role": "DevOps / Infrastructure",
+      "company": "Tryangle",
+      "email": "andre@tryangle.io",
+      "notes": "Gere os deploys Supabase, GitHub Actions e ambientes. Configurou o workflow de release para publicação automática no npm.",
+      "created_at": "2025-11-10T14:00:00Z"
+    }
+  ],
+
+  "projects": [
+    {
+      "id": "33333333-0000-0000-0000-000000000001",
+      "name": "Context Engine",
+      "company": "Tryangle",
+      "description": "Sistema de memória persistente com RAG + multi-agent orquestrado via Claude Code. Inclui web UI, MCP server, CLI e edge functions Supabase.",
+      "status": "active",
+      "stack": ["Next.js", "Supabase", "pgvector", "TypeScript", "Claude", "OpenRouter"],
+      "created_at": "2025-10-01T08:00:00Z"
+    },
+    {
+      "id": "33333333-0000-0000-0000-000000000002",
+      "name": "Camaleon CLI",
+      "company": "Tryangle",
+      "description": "CLI para instalar e gerir o Context Engine localmente. Publicado no npm como @tryangle/camaleon. Dois pacotes: camaleon-mcp e camaleon-web.",
+      "status": "active",
+      "stack": ["Node.js", "TypeScript", "pnpm"],
+      "created_at": "2025-12-01T09:00:00Z"
+    },
+    {
+      "id": "33333333-0000-0000-0000-000000000003",
+      "name": "Landing Page",
+      "company": "Tryangle",
+      "description": "Página de marketing do Context Engine. Next.js com animações GSAP e Three.js. Deploy no Vercel.",
+      "status": "active",
+      "stack": ["Next.js", "GSAP", "Three.js", "Tailwind"],
+      "created_at": "2026-01-20T10:00:00Z"
+    }
+  ],
+
+  "entries": [
+    {
+      "id": "11111111-0000-0000-0000-000000000001",
+      "type": "decision",
+      "title": "Adoptar Supabase como backend principal",
+      "content": "Após análise de alternativas (Firebase, PlanetScale, Neon), decidimos usar Supabase pela combinação de PostgreSQL, auth nativa, edge functions e SDK TypeScript de primeira classe. Custo previsível e suporte a pgvector para RAG foram factores decisivos.",
+      "status": "done",
+      "pinned": true,
+      "tags": ["architecture", "backend", "supabase"],
+      "project_id": "33333333-0000-0000-0000-000000000001",
+      "person_id": "22222222-0000-0000-0000-000000000001",
+      "created_at": "2025-11-03T09:14:00Z",
+      "updated_at": "2025-11-03T09:14:00Z"
+    },
+    {
+      "id": "11111111-0000-0000-0000-000000000002",
+      "type": "decision",
+      "title": "Usar OpenRouter em vez de OpenAI directo",
+      "content": "OpenRouter permite fallback automático entre modelos, controlo de custo por modelo e não há vendor lock-in. Configurado com Claude 3 Haiku como modelo primário para embeddings e Claude 3.5 Sonnet para RAG answers.",
+      "status": "done",
+      "pinned": false,
+      "tags": ["ai", "llm", "architecture"],
+      "project_id": "33333333-0000-0000-0000-000000000001",
+      "person_id": "22222222-0000-0000-0000-000000000001",
+      "created_at": "2025-11-10T14:22:00Z",
+      "updated_at": "2025-11-10T14:22:00Z"
+    },
+    {
+      "id": "11111111-0000-0000-0000-000000000003",
+      "type": "decision",
+      "title": "Multi-agent system via Claude Code Task tool",
+      "content": "Em vez de orquestrar agentes via API customizada, aproveitamos o Task tool nativo do Claude Code. O Orchestrator delega via Task e cada agente corre de forma isolada. Elimina necessidade de servidor de orquestração próprio.",
+      "status": "done",
+      "pinned": true,
+      "tags": ["agents", "architecture", "claude"],
+      "project_id": "33333333-0000-0000-0000-000000000001",
+      "person_id": "22222222-0000-0000-0000-000000000001",
+      "created_at": "2026-01-15T10:00:00Z",
+      "updated_at": "2026-01-15T10:00:00Z"
+    },
+    {
+      "id": "11111111-0000-0000-0000-000000000004",
+      "type": "task",
+      "title": "Implementar re-embedding automático via cron",
+      "content": "Script re-embed.ts existe mas corre manualmente. Criar edge function ou GitHub Action agendada para re-embedar entries sem embedding de X em X horas. Prioridade: média.",
+      "status": "pending",
+      "pinned": false,
+      "tags": ["embeddings", "automation", "backlog"],
+      "project_id": "33333333-0000-0000-0000-000000000001",
+      "person_id": "22222222-0000-0000-0000-000000000004",
+      "created_at": "2026-02-01T08:30:00Z",
+      "updated_at": "2026-02-01T08:30:00Z"
+    },
+    {
+      "id": "11111111-0000-0000-0000-000000000005",
+      "type": "task",
+      "title": "Adicionar autenticação à web UI",
+      "content": "Actualmente a web UI não tem auth — qualquer pessoa com a URL tem acesso total. Implementar Supabase Auth com magic link ou OAuth GitHub. Necessário antes de qualquer deploy público.",
+      "status": "blocked",
+      "pinned": true,
+      "tags": ["security", "auth", "p0"],
+      "project_id": "33333333-0000-0000-0000-000000000001",
+      "person_id": "22222222-0000-0000-0000-000000000003",
+      "created_at": "2026-02-10T11:00:00Z",
+      "updated_at": "2026-03-05T16:45:00Z"
+    },
+    {
+      "id": "11111111-0000-0000-0000-000000000006",
+      "type": "task",
+      "title": "Publicar CLI no npm como @tryangle/camaleon",
+      "content": "Preparar package.json com keywords, descrição e homepage. Criar .npmrc com provenance. Testar pnpm publish --dry-run. Confirmar que o workflow release.yml gera o artefacto correcto.",
+      "status": "pending",
+      "pinned": false,
+      "tags": ["cli", "npm", "release"],
+      "project_id": "33333333-0000-0000-0000-000000000002",
+      "person_id": "22222222-0000-0000-0000-000000000004",
+      "created_at": "2026-03-20T09:00:00Z",
+      "updated_at": "2026-03-20T09:00:00Z"
+    },
+    {
+      "id": "11111111-0000-0000-0000-000000000007",
+      "type": "note",
+      "title": "pgvector: cosine similarity threshold 0.78",
+      "content": "Após testes de RAG com ~200 entries, o threshold 0.78 dá o melhor balance entre recall e precision. Abaixo de 0.75 traz demasiado ruído. Acima de 0.82 perde contexto relevante em queries ambíguas.",
+      "status": null,
+      "pinned": false,
+      "tags": ["rag", "embeddings", "lesson"],
+      "project_id": "33333333-0000-0000-0000-000000000001",
+      "person_id": null,
+      "created_at": "2025-12-05T17:30:00Z",
+      "updated_at": "2025-12-05T17:30:00Z"
+    },
+    {
+      "id": "11111111-0000-0000-0000-000000000008",
+      "type": "note",
+      "title": "Next.js 15 — app router server actions não funcionam com supabase-js v1",
+      "content": "Bug encontrado ao tentar usar createServerClient em server actions. A versão @supabase/ssr >= 0.4 resolve. Nunca usar supabase-js directamente em server actions — usar sempre o helper de supabase-server.ts.",
+      "status": null,
+      "pinned": false,
+      "tags": ["nextjs", "supabase", "bug", "lesson"],
+      "project_id": "33333333-0000-0000-0000-000000000001",
+      "person_id": "22222222-0000-0000-0000-000000000003",
+      "created_at": "2026-01-22T14:15:00Z",
+      "updated_at": "2026-01-22T14:15:00Z"
+    },
+    {
+      "id": "11111111-0000-0000-0000-000000000009",
+      "type": "note",
+      "title": "Preferência: border-radius:0 em toda a UI",
+      "content": "Todo o design do dashboard usa borderRadius: 0 para dar feel de terminal / ops tool. Nunca adicionar border-radius sem discussão explícita. Excepção: avatares e badges de status.",
+      "status": null,
+      "pinned": false,
+      "tags": ["design", "preference", "ui"],
+      "project_id": "33333333-0000-0000-0000-000000000001",
+      "person_id": "22222222-0000-0000-0000-000000000002",
+      "created_at": "2026-01-08T10:00:00Z",
+      "updated_at": "2026-01-08T10:00:00Z"
+    },
+    {
+      "id": "11111111-0000-0000-0000-000000000010",
+      "type": "idea",
+      "title": "Context Engine como produto SaaS standalone",
+      "content": "O sistema de memória RAG + multi-agent poderia ser um produto separado — uma espécie de Notion + Obsidian para developers com AI nativa. Monetização: plano free com 500 entries, pro com unlimited + deployments personalizados.",
+      "status": "pending",
+      "pinned": false,
+      "tags": ["saas", "product", "idea"],
+      "project_id": "33333333-0000-0000-0000-000000000001",
+      "person_id": "22222222-0000-0000-0000-000000000001",
+      "created_at": "2026-02-28T20:00:00Z",
+      "updated_at": "2026-02-28T20:00:00Z"
+    },
+    {
+      "id": "11111111-0000-0000-0000-000000000011",
+      "type": "meet",
+      "title": "Review Q1 — sistema multi-agent",
+      "content": "Participantes: MC, Bruno Lançoni, Sofia Ramos. Revisão do estado do sistema de agentes. Conclusões: pipeline designer→critic→frontend→tester validado em produção. Bottleneck actual: deploy de edge functions demora +3min por função. Próximo: optimizar cold start.",
+      "status": "done",
+      "pinned": false,
+      "tags": ["meeting", "q1", "agents"],
+      "project_id": "33333333-0000-0000-0000-000000000001",
+      "person_id": "22222222-0000-0000-0000-000000000002",
+      "created_at": "2026-03-31T15:00:00Z",
+      "updated_at": "2026-03-31T16:30:00Z"
+    },
+    {
+      "id": "11111111-0000-0000-0000-000000000012",
+      "type": "log",
+      "title": "Deploy v1.0.0 — produção",
+      "content": "v1.0.0 deployada com sucesso. Supabase migrations aplicadas via CLI. Edge functions embed, chat e rag-answer activas. Web UI disponível. MCP server publicado no npm. Sem erros no health check pós-deploy.",
+      "status": "done",
+      "pinned": false,
+      "tags": ["deploy", "production", "v1"],
+      "project_id": "33333333-0000-0000-0000-000000000001",
+      "person_id": "22222222-0000-0000-0000-000000000004",
+      "created_at": "2026-04-01T12:00:00Z",
+      "updated_at": "2026-04-01T12:00:00Z"
+    },
+    {
+      "id": "11111111-0000-0000-0000-000000000013",
+      "type": "task",
+      "title": "Redesign landing page — hero section 3D",
+      "content": "Substituir hero estático por cena Three.js com partículas e texto animado. Bruno já aprovou o conceito. Sofia implementa. Prazo: fim do mês.",
+      "status": "pending",
+      "pinned": false,
+      "tags": ["landing", "3d", "design"],
+      "project_id": "33333333-0000-0000-0000-000000000003",
+      "person_id": "22222222-0000-0000-0000-000000000002",
+      "created_at": "2026-04-05T09:00:00Z",
+      "updated_at": "2026-04-05T09:00:00Z"
+    },
+    {
+      "id": "11111111-0000-0000-0000-000000000014",
+      "type": "log",
+      "title": "André configurou pipeline CI/CD completo",
+      "content": "GitHub Actions configuradas: lint + typecheck em cada PR, release automático via tag v*. Workflow release.yml publica os dois packages CLI no npm com provenance. Ambientes staging e prod separados no Supabase.",
+      "status": "done",
+      "pinned": false,
+      "tags": ["devops", "ci-cd", "release"],
+      "project_id": "33333333-0000-0000-0000-000000000002",
+      "person_id": "22222222-0000-0000-0000-000000000004",
+      "created_at": "2026-03-15T11:00:00Z",
+      "updated_at": "2026-03-15T11:00:00Z"
+    }
+  ]
+}

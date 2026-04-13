@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 80" width="320" height="80" fill="none">
+
+  <!-- Minimal terminal-feel logo -->
+  <!-- Icon: just the chameleon eye as a square mark, terminal-style -->
+
+  <!-- Square bg -->
+  <rect x="8" y="8" width="64" height="64" rx="10" fill="#1C1917"/>
+
+  <!-- Chameleon eye — the "C" in negative space -->
+  <circle cx="40" cy="40" r="20" fill="#2563EB"/>
+  <circle cx="40" cy="40" r="11" fill="#1C1917"/>
+  <!-- Pupil slit (vertical, like a chameleon) -->
+  <rect x="38" y="30" width="4" height="20" rx="2" fill="#1C1917"/>
+  <!-- Iris ring -->
+  <circle cx="40" cy="40" r="7" fill="#2563EB" opacity="0.3"/>
+  <!-- Highlight -->
+  <circle cx="44.5" cy="34.5" r="3.5" fill="white" opacity="0.85"/>
+
+  <!-- Caret / bracket around it -->
+  <path d="M14 22 L14 14 L22 14" stroke="#2563EB" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M58 14 L66 14 L66 22" stroke="#2563EB" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M14 58 L14 66 L22 66" stroke="#2563EB" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M58 66 L66 66 L66 58" stroke="#2563EB" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Wordmark — two-tone -->
+  <text x="90" y="38" font-family="'Inter', 'Helvetica Neue', Arial, sans-serif" font-size="28" font-weight="800" letter-spacing="-1.5" fill="#1C1917">cama</text>
+  <text x="186" y="38" font-family="'Inter', 'Helvetica Neue', Arial, sans-serif" font-size="28" font-weight="800" letter-spacing="-1.5" fill="#2563EB">leon</text>
+
+  <!-- Underline accent -->
+  <rect x="90" y="44" width="220" height="2.5" rx="1.25" fill="#E8E4DB"/>
+  <rect x="90" y="44" width="96" height="2.5" rx="1.25" fill="#1C1917"/>
+  <rect x="186" y="44" width="62" height="2.5" rx="1.25" fill="#2563EB"/>
+
+  <!-- Tagline -->
+  <text x="90" y="62" font-family="'Inter', 'Helvetica Neue', Arial, sans-serif" font-size="10.5" font-weight="500" letter-spacing="2.5" fill="#78716C">MULTI-AGENT PLATFORM</text>
+
+</svg>

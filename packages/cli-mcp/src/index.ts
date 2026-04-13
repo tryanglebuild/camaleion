@@ -66,7 +66,7 @@ async function cmdInstall() {
         }),
       braveApiKey: () =>
         p.text({
-          message: 'Brave Search API Key (optional — enables fetch_world_context)',
+          message: 'Brave Search API Keykleur (optional — enables fetch_world_context)',
           placeholder: 'BSA...',
           initialValue: saved.braveApiKey ?? '',
         }),

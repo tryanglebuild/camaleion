@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 80" width="320" height="80" fill="none">
+  <!-- Background: transparent -->
+
+  <!-- Chameleon icon: geometric/minimal -->
+  <!-- Body silhouette: rounded polygon -->
+  <g transform="translate(8, 8)">
+
+    <!-- Eye socket outer -->
+    <ellipse cx="46" cy="18" rx="10" ry="10" fill="#2563EB"/>
+    <!-- Eye socket inner -->
+    <ellipse cx="46" cy="18" rx="6" ry="6" fill="#1C1917"/>
+    <!-- Eye highlight -->
+    <circle cx="49" cy="15" r="2" fill="#F5F3EE"/>
+
+    <!-- Head -->
+    <path d="M24 28 Q20 20 28 14 Q34 10 42 12 L56 14 Q62 16 62 22 L60 32 Q58 38 52 40 L36 42 Q28 42 24 36 Z" fill="#1C1917"/>
+
+    <!-- Crest / crown spikes -->
+    <path d="M28 14 L26 6 L31 13" fill="#2563EB"/>
+    <path d="M34 11 L33 3 L38 10" fill="#2563EB"/>
+    <path d="M41 10 L41 2 L45 10" fill="#2563EB"/>
+
+    <!-- Body -->
+    <path d="M36 40 Q28 44 22 50 Q16 56 18 62 Q20 68 28 66 L42 60 Q50 56 52 48 L52 40 Z" fill="#1C1917"/>
+
+    <!-- Tail curl -->
+    <path d="M28 66 Q18 70 14 64 Q10 56 16 52 Q20 50 22 54 Q24 58 20 58 Q16 58 18 62" stroke="#2563EB" stroke-width="3" stroke-linecap="round" fill="none"/>
+
+    <!-- Legs -->
+    <path d="M30 52 L22 60 M36 56 L30 66 M44 50 L50 58 M46 44 L54 50" stroke="#1C1917" stroke-width="3" stroke-linecap="round"/>
+
+    <!-- Tongue -->
+    <path d="M62 22 L74 18" stroke="#2563EB" stroke-width="2.5" stroke-linecap="round"/>
+    <circle cx="75" cy="17.5" r="2.5" fill="#2563EB"/>
+
+  </g>
+
+  <!-- Wordmark: "camaleon" -->
+  <text x="102" y="52" font-family="'Inter', 'Helvetica Neue', Arial, sans-serif" font-size="32" font-weight="700" letter-spacing="-1" fill="#1C1917">camaleon</text>
+
+  <!-- Tagline -->
+  <text x="103" y="68" font-family="'Inter', 'Helvetica Neue', Arial, sans-serif" font-size="11" font-weight="400" letter-spacing="2" fill="#78716C">AI CONTEXT ENGINE</text>
+
+</svg>

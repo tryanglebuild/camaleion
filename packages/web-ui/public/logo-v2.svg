@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 80" width="320" height="80" fill="none">
+
+  <!-- Icon: Adaptive "C" shape morphing into chameleon eye -->
+  <defs>
+    <linearGradient id="grad1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2563EB"/>
+      <stop offset="100%" stop-color="#7C3AED"/>
+    </linearGradient>
+    <linearGradient id="grad2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2563EB" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#7C3AED" stop-opacity="0.08"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Outer ring with gap (C shape) — adapts/changes -->
+  <circle cx="40" cy="40" r="28" stroke="url(#grad1)" stroke-width="5" stroke-linecap="round"
+    stroke-dasharray="140 36"
+    stroke-dashoffset="-8"
+    fill="url(#grad2)"/>
+
+  <!-- Inner eye: chameleon's iconic eye -->
+  <circle cx="40" cy="40" r="14" fill="url(#grad1)"/>
+  <circle cx="40" cy="40" r="8" fill="#1C1917"/>
+  <circle cx="44" cy="36" r="3" fill="white" opacity="0.9"/>
+  <circle cx="43" cy="37" r="1.2" fill="white"/>
+
+  <!-- Small dots on outer ring suggesting "nodes / agents" -->
+  <circle cx="40" cy="12" r="3" fill="#2563EB"/>
+  <circle cx="63" cy="27" r="2.5" fill="#7C3AED"/>
+  <circle cx="63" cy="53" r="2.5" fill="#7C3AED"/>
+  <circle cx="40" cy="68" r="3" fill="#2563EB"/>
+  <circle cx="17" cy="53" r="2.5" fill="#2563EB"/>
+  <circle cx="17" cy="27" r="2.5" fill="#2563EB"/>
+
+  <!-- Wordmark -->
+  <text x="88" y="46" font-family="'Inter', 'Helvetica Neue', Arial, sans-serif" font-size="30" font-weight="700" letter-spacing="-1" fill="#1C1917">camaleon</text>
+
+  <!-- Blue accent dot on the "a" to nod at the eye motif -->
+  <text x="88" y="64" font-family="'Inter', 'Helvetica Neue', Arial, sans-serif" font-size="11" font-weight="500" letter-spacing="3" fill="#2563EB">CONTEXT ENGINE</text>
+
+</svg>

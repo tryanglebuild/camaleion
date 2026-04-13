@@ -1,0 +1,190 @@
+@import "tailwindcss";
+
+/* ─── CAMELEON Design System ─────────────────────────────── */
+:root {
+  /* Base */
+  --void:      #050508;
+  --surface-1: #0A0A12;
+  --surface-2: #12121F;
+  --surface-3: #1A1A2E;
+  --border:    rgba(255,255,255,0.06);
+  --border-hov:rgba(255,255,255,0.12);
+
+  /* Text */
+  --text-primary:   #FAFAFA;
+  --text-secondary: #A1A1AA;
+  --text-tertiary:  #52525B;
+  --text-muted:     #3F3F46;
+
+  /* Phase accent (updated by JS via chromatic shift) */
+  --accent:       #00FF88;
+  --accent-glow:  rgba(0,255,136,0.15);
+  --page-hue:     150;
+
+  /* Phase accents (static references) */
+  --accent-emerald: #00FF88;
+  --accent-violet:  #8B5CF6;
+  --accent-amber:   #F59E0B;
+  --accent-cyan:    #06B6D4;
+  --accent-rose:    #F43F5E;
+
+  /* Chromatic gradient */
+  --chromatic: linear-gradient(135deg, #00FF88, #8B5CF6, #F59E0B, #06B6D4);
+
+  /* Layout */
+  --max-width: 1440px;
+  --gutter: 32px;
+}
+
+@theme inline {
+  --color-background: var(--void);
+  --color-foreground: var(--text-primary);
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-jetbrains);
+  --font-display: var(--font-space-grotesk);
+}
+
+/* ─── Base Styles ─────────────────────────────────────────── */
+html {
+  background: var(--void);
+  color: var(--text-primary);
+}
+
+body {
+  background: var(--void);
+  color: var(--text-primary);
+  font-family: var(--font-inter, 'Inter', sans-serif);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Noise grain overlay — applied via JS after mount */
+  background-repeat: repeat;
+}
+
+/* ─── Typography Utilities ────────────────────────────────── */
+.font-display {
+  font-family: var(--font-space-grotesk, 'Space Grotesk', sans-serif);
+}
+
+.font-mono {
+  font-family: var(--font-jetbrains, 'JetBrains Mono', monospace);
+}
+
+/* ─── Scrollbar ───────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: var(--void); }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); }
+::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+/* ─── Selection ───────────────────────────────────────────── */
+::selection {
+  background: var(--accent);
+  color: var(--void);
+}
+
+/* ─── Animations ──────────────────────────────────────────── */
+@keyframes scrollBounce {
+  0%, 100% { transform: translateY(0) rotate(45deg); }
+  50%       { transform: translateY(8px) rotate(45deg); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 8px var(--accent-glow); }
+  50%       { box-shadow: 0 0 20px var(--accent-glow); }
+}
+
+/* ─── Custom Cursor ───────────────────────────────────────── */
+.has-custom-cursor,
+.has-custom-cursor * {
+  cursor: none !important;
+}
+
+/* ─── Scroll progress bar ─────────────────────────────────── */
+#scroll-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 2px;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent-glow);
+  z-index: 9998;
+  transform-origin: left;
+  transform: scaleX(0);
+  transition: background 0.4s ease, box-shadow 0.4s ease;
+}
+
+/* ─── Section reveal base state ───────────────────────────── */
+.reveal-up {
+  opacity: 0;
+  transform: translateY(48px);
+}
+
+.reveal-left {
+  opacity: 0;
+  transform: translateX(-48px);
+}
+
+/* ─── Noise overlay ───────────────────────────────────────── */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url('/noise.png');
+  background-repeat: repeat;
+  opacity: 0.028;
+  pointer-events: none;
+  z-index: 9000;
+  mix-blend-mode: overlay;
+}
+
+/* ─── Horizontal scroll track ─────────────────────────────── */
+.h-track {
+  will-change: transform;
+}
+
+/* ─── Magnetic button base ────────────────────────────────── */
+.btn-magnetic {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: box-shadow 0.3s ease;
+}
+
+.btn-magnetic:hover {
+  box-shadow: 0 0 24px var(--accent-glow);
+}
+
+/* ─── Animations ──────────────────────────────────────────── */
+@keyframes scrollBounce {
+  0%, 100% { transform: translateY(0) rotate(45deg); }
+  50%       { transform: translateY(8px) rotate(45deg); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 8px var(--accent-glow); }
+  50%       { box-shadow: 0 0 24px var(--accent-glow); }
+}
+
+@keyframes ticker-scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+@keyframes grain {
+  0%   { transform: translate(0, 0); }
+  10%  { transform: translate(-5%, -5%); }
+  20%  { transform: translate(-10%, 5%); }
+  30%  { transform: translate(5%, -10%); }
+  40%  { transform: translate(-5%, 15%); }
+  50%  { transform: translate(-10%, 5%); }
+  60%  { transform: translate(15%, 0); }
+  70%  { transform: translate(0, 10%); }
+  80%  { transform: translate(-15%, 0); }
+  90%  { transform: translate(10%, 5%); }
+  100% { transform: translate(5%, 0); }
+}

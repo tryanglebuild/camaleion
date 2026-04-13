@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" fill="none">
+  <!-- Dark square base -->
+  <rect width="64" height="64" rx="12" fill="#1C1917"/>
+
+  <!-- Iris -->
+  <circle cx="32" cy="32" r="20" fill="#2563EB"/>
+  <!-- Inner -->
+  <circle cx="32" cy="32" r="11" fill="#1C1917"/>
+  <!-- Pupil slit -->
+  <rect x="30" y="22" width="4" height="20" rx="2" fill="#1C1917"/>
+  <!-- Subtle iris texture -->
+  <circle cx="32" cy="32" r="7" fill="#2563EB" opacity="0.25"/>
+  <!-- Highlight -->
+  <circle cx="36.5" cy="26.5" r="3.5" fill="white" opacity="0.85"/>
+
+  <!-- Corner brackets -->
+  <path d="M6 16 L6 8 L14 8" stroke="#2563EB" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M50 8 L58 8 L58 16" stroke="#2563EB" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M6 48 L6 56 L14 56" stroke="#2563EB" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M50 56 L58 56 L58 48" stroke="#2563EB" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
